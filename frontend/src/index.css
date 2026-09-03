@@ -1,0 +1,573 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-surface-100 text-slate-800;
+  font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Display face for headlines only (hero, section titles) - kept separate
+   from the body font so headings have their own graphic character
+   instead of just being a bigger/bolder version of the paragraph text. */
+.font-display {
+  font-family: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* ===================================================================
+   Animated app-shell background: used on every logged-in page wrapper
+   in place of a flat surface color. Soft drifting aurora glows + a
+   faint blueprint grid, both fixed to the viewport so they read as an
+   ambient 3D backdrop instead of scrolling flatly with the content.
+   =================================================================== */
+.app-shell-bg {
+  position: relative;
+  background: linear-gradient(180deg, #eef4ff 0%, #f4f8ff 45%, #f6f9ff 100%);
+}
+.app-shell-bg::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 900px 500px at 85% -10%, rgba(96, 165, 250, 0.32), transparent 60%),
+    radial-gradient(ellipse 700px 500px at -10% 25%, rgba(34, 211, 238, 0.2), transparent 60%),
+    radial-gradient(ellipse 650px 500px at 60% 100%, rgba(124, 109, 242, 0.18), transparent 60%),
+    radial-gradient(ellipse 500px 400px at 20% 85%, rgba(16, 185, 129, 0.1), transparent 60%);
+  background-attachment: fixed;
+  animation: auroraDrift 18s ease-in-out infinite;
+}
+.app-shell-bg::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background-image:
+    linear-gradient(90deg, rgba(37, 99, 235, 0.07) 1px, transparent 1px),
+    linear-gradient(rgba(37, 99, 235, 0.07) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(ellipse 1300px 900px at 65% 5%, #000 40%, transparent 78%);
+  mask-image: radial-gradient(ellipse 1300px 900px at 65% 5%, #000 40%, transparent 78%);
+}
+@keyframes auroraDrift {
+  0%, 100% { background-position: 0 0, 0 0, 0 0, 0 0; }
+  50% { background-position: -60px 30px, 50px -25px, -30px -20px, 20px 20px; }
+}
+
+/* Small drifting 3D-ish decorative shapes rendered once (fixed to the
+   viewport) alongside the sidebar, so every inner page feels alive
+   instead of a plain flat canvas. Purely decorative, no interaction. */
+.floating-shape {
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.5;
+}
+.floating-shape.shape-cube {
+  width: 58px;
+  height: 58px;
+  top: 12%;
+  right: 5%;
+  border-radius: 18px;
+  background: linear-gradient(150deg, #60a5fa, #2563eb);
+  box-shadow: 0 20px 40px -14px rgba(37, 99, 235, 0.45);
+  transform: rotate(-10deg);
+  animation: shapeFloat 8s ease-in-out infinite;
+}
+.floating-shape.shape-coin {
+  width: 38px;
+  height: 38px;
+  border-radius: 9999px;
+  top: 56%;
+  right: 3%;
+  background: linear-gradient(150deg, #fde68a, #f59e0b);
+  box-shadow: 0 16px 30px -10px rgba(217, 119, 6, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 16px;
+  animation: shapeFloat 10s ease-in-out infinite reverse;
+}
+.floating-shape.shape-diamond {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  bottom: 9%;
+  right: 12%;
+  background: linear-gradient(150deg, #67e8f9, #06b6d4);
+  box-shadow: 0 14px 24px -8px rgba(6, 182, 212, 0.45);
+  transform: rotate(16deg);
+  animation: shapeFloat 9s ease-in-out infinite;
+  animation-delay: 0.6s;
+}
+.floating-shape.shape-ring {
+  width: 90px;
+  height: 90px;
+  bottom: 22%;
+  left: 4%;
+  border-radius: 9999px;
+  border: 2px dashed rgba(124, 109, 242, 0.35);
+  animation: shapeSpin 26s linear infinite;
+}
+@keyframes shapeFloat {
+  0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+  50% { transform: translateY(-16px) rotate(var(--r, 0deg)); }
+}
+@keyframes shapeSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ===================================================================
+   Shared "panel" card used across Dashboard/Analytics/Stock/Udhaar/
+   Reports in place of a flat white box: frosted glass over the animated
+   aurora background, a real (if subtle) 3D lift on hover, and a
+   two-tone border so cards read as physical surfaces instead of
+   outlined rectangles.
+   =================================================================== */
+.panel-card {
+  position: relative;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.75) 0%, rgba(244, 249, 255, 0.68) 65%, rgba(234, 243, 255, 0.62) 100%);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  box-shadow: 0 1px 2px rgba(15, 30, 61, 0.04), 0 10px 24px -14px rgba(37, 99, 235, 0.22);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease, border-color 0.35s ease;
+}
+.panel-card:hover {
+  transform: perspective(1000px) rotateX(0.6deg) translateY(-3px);
+  box-shadow: 0 1px 2px rgba(15, 30, 61, 0.04), 0 22px 40px -18px rgba(37, 99, 235, 0.32);
+  border-color: rgba(37, 99, 235, 0.28);
+}
+
+/* Stat/metric cards: same idea but with a bit more lift + a shine
+   sweep on hover, since these are the numbers people scan first. */
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.78) 0%, rgba(238, 246, 255, 0.68) 70%, rgba(227, 239, 255, 0.62) 100%);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  box-shadow: 0 1px 2px rgba(15, 30, 61, 0.05), 0 12px 26px -14px rgba(37, 99, 235, 0.24);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease;
+}
+.stat-card:hover {
+  transform: perspective(1000px) rotateX(2deg) rotateY(-1.5deg) translateY(-4px);
+  box-shadow: 0 1px 2px rgba(15, 30, 61, 0.05), 0 24px 44px -16px rgba(37, 99, 235, 0.35);
+}
+.stat-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.55) 50%, transparent 60%);
+  transform: translateX(-120%);
+  transition: transform 0.7s ease;
+  pointer-events: none;
+}
+.stat-card:hover::after {
+  transform: translateX(120%);
+}
+
+/* "This opens something" affordance shown at the bottom of clickable
+   stat cards, revealed on hover so the card doesn't shout by default. */
+.card-open-hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.stat-card:hover .card-open-hint,
+.stat-card:focus-within .card-open-hint {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Call-to-action panel used for "add a thing here" entry points (quick
+   add, add stock item, add customer) - a dashed, tinted well instead of
+   a plain white card, so it visually reads as an input zone. */
+.entry-well {
+  position: relative;
+  border-radius: 1.25rem;
+  border: 1.5px dashed rgba(37, 99, 235, 0.35);
+  background: linear-gradient(160deg, #f4f9ff 0%, #e7f1ff 100%);
+  box-shadow: 0 1px 2px rgba(15, 30, 61, 0.04), 0 10px 22px -16px rgba(37, 99, 235, 0.28);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.entry-well:hover,
+.entry-well:focus-within {
+  border-color: rgba(37, 99, 235, 0.55);
+  box-shadow: 0 1px 2px rgba(15, 30, 61, 0.04), 0 16px 30px -16px rgba(37, 99, 235, 0.38);
+}
+
+/* Toggle bar for "Add new item" / "Add a new customer" - a filled
+   pill-ish header instead of a plain text row, so it reads as a button. */
+.toggle-bar {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-radius: 0.9rem;
+  padding: 0.85rem 1.1rem;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(8, 145, 178, 0.08));
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  transition: background 0.25s ease, border-color 0.25s ease;
+}
+.toggle-bar:hover {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.16), rgba(8, 145, 178, 0.12));
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+::selection {
+  background: #93c5fd;
+  color: #08234f;
+}
+
+/* Ambient page background used on Landing/Auth to match the product mockup:
+   soft radial glows + a very subtle grid, all behind the content (z-index 0). */
+.bg-ambient {
+  position: relative;
+  background:
+    radial-gradient(1100px 620px at 88% -8%, #dceeff 0%, transparent 60%),
+    radial-gradient(900px 520px at -6% 18%, #e6f1ff 0%, transparent 55%),
+    linear-gradient(180deg, #eef6ff, #e2eefd 60%, #eaf3fe 100%);
+}
+
+.bg-ambient::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(37, 99, 235, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.06) 1px, transparent 1px);
+  background-size: 58px 58px;
+  -webkit-mask-image: radial-gradient(ellipse 60% 55% at 50% 20%, #000 30%, transparent 75%);
+  mask-image: radial-gradient(ellipse 60% 55% at 50% 20%, #000 30%, transparent 75%);
+}
+
+/* Soft blurred color blobs used as decoration behind hero sections */
+.blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(60px);
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 0;
+}
+.blob-blue {
+  background: radial-gradient(circle at 35% 30%, #a9d4ff, #7fb8fb 55%, transparent 75%);
+}
+.blob-cyan {
+  background: radial-gradient(circle at 60% 40%, #bfe6ff, #8fd3e8 55%, transparent 75%);
+}
+
+/* Gradient text used on headlines, matching mockup's blue->cyan sweep */
+.text-gradient {
+  background: linear-gradient(120deg, #2563eb, #06b6d4, #2563eb);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradientShift 5s ease-in-out infinite;
+}
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Small decorative 3D-ish shapes (cube/coin) used sparingly on Landing/Auth */
+.deco-cube {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: linear-gradient(150deg, #8ec5ff, #2563eb);
+  box-shadow: 0 14px 28px -8px rgba(37, 99, 235, 0.45);
+  transform-style: preserve-3d;
+  animation: cubeSpin 9s linear infinite, floaty 6s ease-in-out infinite;
+}
+.deco-coin {
+  width: 46px;
+  height: 46px;
+  border-radius: 9999px;
+  background: linear-gradient(150deg, #fde68a, #d97706);
+  box-shadow: 0 14px 30px -8px rgba(217, 119, 6, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 800;
+  transform-style: preserve-3d;
+  animation: coinFlip 5s ease-in-out infinite, floaty 7s ease-in-out infinite;
+  animation-delay: 0s, .8s;
+}
+.deco-pill {
+  border-radius: 9999px;
+  animation: floaty 8s ease-in-out infinite;
+}
+
+@keyframes cubeSpin {
+  0%   { transform: perspective(300px) rotateX(0deg) rotateY(0deg) rotate(-8deg); }
+  50%  { transform: perspective(300px) rotateX(180deg) rotateY(140deg) rotate(-8deg); }
+  100% { transform: perspective(300px) rotateX(360deg) rotateY(360deg) rotate(-8deg); }
+}
+@keyframes coinFlip {
+  0%, 100% { transform: perspective(300px) rotateY(0deg); }
+  50%      { transform: perspective(300px) rotateY(180deg); }
+}
+
+/* Gentle tilt/parallax wrapper for hero mockup cards */
+.tilt-card {
+  animation: tiltSway 8s ease-in-out infinite;
+  transform-style: preserve-3d;
+}
+@keyframes tiltSway {
+  0%, 100% { transform: perspective(1000px) rotateY(-8deg) rotateX(4deg) translateY(0); }
+  50%      { transform: perspective(1000px) rotateY(-4deg) rotateX(2deg) translateY(-10px); }
+}
+
+/* Fade-and-rise entrance, applied once on mount via a small stagger delay */
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.rise-in {
+  animation: riseIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ===================================================================
+   Auth-page left panel: floating 3D stack of "ledger cards" + orbiting
+   coin/chart tokens, used to replace a plain bullet list with a scene
+   that actually feels alive. All pure CSS so it's cheap to render.
+   =================================================================== */
+.stage-3d {
+  perspective: 1400px;
+}
+.ledger-stack {
+  transform-style: preserve-3d;
+  animation: stackFloat 7s ease-in-out infinite;
+}
+@keyframes stackFloat {
+  0%, 100% { transform: rotateX(8deg) rotateY(-14deg) translateY(0); }
+  50%      { transform: rotateX(10deg) rotateY(-10deg) translateY(-14px); }
+}
+.ledger-card {
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 30px 60px -20px rgba(8, 35, 79, 0.45);
+  backdrop-filter: blur(2px);
+}
+.ledger-card-1 {
+  background: linear-gradient(155deg, #ffffff, #dbeafe);
+  transform: translateZ(0px) translateY(28px) scale(0.92);
+  opacity: 0.85;
+}
+.ledger-card-2 {
+  background: linear-gradient(155deg, #eff6ff, #bfe3ff);
+  transform: translateZ(34px) translateY(14px) scale(0.96);
+  opacity: 0.95;
+}
+.ledger-card-3 {
+  background: linear-gradient(155deg, #ffffff, #eaf3ff);
+  transform: translateZ(68px);
+}
+
+.orbit-ring {
+  position: absolute;
+  border-radius: 9999px;
+  border: 1.5px dashed rgba(37, 99, 235, 0.25);
+  transform-style: preserve-3d;
+  animation: orbitSpin 16s linear infinite;
+}
+@keyframes orbitSpin {
+  from { transform: rotateX(70deg) rotateZ(0deg); }
+  to   { transform: rotateX(70deg) rotateZ(360deg); }
+}
+.orbit-token {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  font-weight: 800;
+  color: #fff;
+  box-shadow: 0 10px 22px -6px rgba(8, 35, 79, 0.45);
+}
+
+.glow-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(2px);
+  animation: glowPulse 4.5s ease-in-out infinite;
+}
+@keyframes glowPulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50%      { transform: scale(1.18); opacity: 1; }
+}
+
+/* Rotating quote fade used on the Auth left panel + Landing testimonials */
+.quote-swap {
+  animation: quoteFade 0.6s ease both;
+}
+@keyframes quoteFade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Testimonial cards on the Landing page: gentle alternating 3D tilt */
+.testi-card {
+  transform-style: preserve-3d;
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+}
+.testi-card:hover {
+  transform: perspective(900px) rotateX(2deg) rotateY(-3deg) translateY(-6px);
+  box-shadow: 0 26px 50px -18px rgba(37, 99, 235, 0.35);
+}
+.testi-card:nth-child(2) { animation: floaty 7s ease-in-out infinite; }
+.testi-card:nth-child(1) { animation: floaty 8s ease-in-out infinite; animation-delay: .3s; }
+.testi-card:nth-child(3) { animation: floaty 6.5s ease-in-out infinite; animation-delay: .6s; }
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
+}
+
+/* Chat-bubble "AI is typing" mockup used inside the Landing hero card */
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #2563eb;
+  animation: typingBounce 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30%           { transform: translateY(-4px); opacity: 1; }
+}
+
+/* Scroll-triggered reveal used on Landing feature/step/CTA sections -
+   starts slightly down + faded, animates in once it enters the viewport. */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.animate-pulse-slow {
+  animation: pulseSlow 2.4s ease-in-out infinite;
+}
+@keyframes pulseSlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.35); }
+  50%      { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0); }
+}
+
+/* Thin, unobtrusive scrollbar for dashboard panels/tables */
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: #cfe4ff;
+  border-radius: 999px;
+}
+
+/* ===================================================================
+   Left navigation ("sidebar-glass"): frosted glass panel that floats
+   over the animated app background, with two soft drifting color
+   blobs baked into its own corners so the nav itself feels part of
+   the animated scene rather than a flat opaque strip.
+   =================================================================== */
+.sidebar-glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(247, 251, 255, 0.7) 55%, rgba(242, 248, 255, 0.65) 100%);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  box-shadow: 1px 0 0 rgba(37, 99, 235, 0.06), 0 0 40px -12px rgba(37, 99, 235, 0.12);
+}
+.sidebar-glass::before {
+  content: '';
+  position: absolute;
+  top: -70px;
+  right: -70px;
+  width: 190px;
+  height: 190px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.18), transparent 70%);
+  animation: sidebarDrift 22s ease-in-out infinite;
+  pointer-events: none;
+}
+.sidebar-glass::after {
+  content: '';
+  position: absolute;
+  bottom: -90px;
+  left: -50px;
+  width: 190px;
+  height: 190px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.16), transparent 70%);
+  animation: sidebarDrift 26s ease-in-out infinite reverse;
+  pointer-events: none;
+}
+@keyframes sidebarDrift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-16px, 18px) scale(1.06); }
+  66% { transform: translate(14px, -14px) scale(0.96); }
+}
+
+/* Nav item shine sweep on the active gradient pill, echoing the
+   stat-card shine so the nav reads as the same physical "material". */
+.nav-item-active {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(120deg, #2563eb 0%, #1d4ed8 55%, #0891b2 100%);
+  box-shadow: 0 10px 24px -8px rgba(37, 99, 235, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.nav-item-active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.35) 50%, transparent 60%);
+  transform: translateX(-130%);
+  animation: navShineSweep 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes navShineSweep {
+  0%, 40% { transform: translateX(-130%); }
+  70%, 100% { transform: translateX(130%); }
+}
+
+/* Brand mark: gentle continuous 3D tilt so the logo reads as a small
+   floating object rather than a static icon tile. */
+.brand-mark-3d {
+  animation: brandTilt 6s ease-in-out infinite;
+  transform-style: preserve-3d;
+}
+@keyframes brandTilt {
+  0%, 100% { transform: perspective(400px) rotateX(6deg) rotateY(-6deg); }
+  50% { transform: perspective(400px) rotateX(-4deg) rotateY(8deg); }
+}
