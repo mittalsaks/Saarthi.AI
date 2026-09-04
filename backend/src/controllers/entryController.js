@@ -161,7 +161,65 @@ async function quickAddVoice(req, res) {
     return res.status(500).json({ error: 'Something went wrong while processing the voice note' });
   }
 }
+/**
+ * POST /api/entries/quick-add/image
+ * Photo (base64, bill/receipt/handwritten khata page) -> Gemini image
+ * input -> structured guess -> SAME validateQuickAdd.js sanitization
+ * used by the text/voice paths -> returned for confirmation. Nothing is
+ * saved here - the frontend shows what was read + the parsed fields
+ * for review, and only calls POST /api/entries (the existing manual-
+ * create endpoint) once the owner confirms, exactly like the voice
+ * flow already does.
+ */
+const MAX_IMAGE_BYTES = 6 * 1024 * 1024; // ~6MB raw is generous for a phone photo of one bill
+const ALLOWED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 
+async function quickAddImage(req, res) {
+  try {
+    const { image, mimeType } = req.body || {};
+
+    if (!image || typeof image !== 'string') {
+      return res.status(400).json({ error: 'image is required (base64-encoded)' });
+    }
+    if (!mimeType || typeof mimeType !== 'string' || !ALLOWED_IMAGE_MIME_TYPES.includes(mimeType.toLowerCase())) {
+      return res.status(400).json({
+        error: `A valid image mimeType is required (one of: ${ALLOWED_IMAGE_MIME_TYPES.join(', ')})`,
+      });
+    }
+
+    // base64 -> raw byte length, without allocating a Buffer just to check size.
+    const approxBytes = Math.floor((image.length * 3) / 4);
+    if (approxBytes > MAX_IMAGE_BYTES) {
+      return res.status(400).json({ error: 'Image file is too large - please use a smaller photo (under 6MB)' });
+    }
+
+    const user = await User.findById(req.userId).select('languagePref');
+    const languagePref = user?.languagePref || 'Hinglish';
+
+    let parsed;
+    try {
+      parsed = await geminiService.parseEntryFromImage(image, mimeType, languagePref);
+    } catch (aiErr) {
+      console.error('quick-add image AI error:', aiErr.message);
+      return res.status(422).json({
+        error: "Couldn't read that image - please try a clearer photo or use the manual form",
+        aiUnavailable: true,
+      });
+    }
+
+    const readText = typeof parsed?.readText === 'string' ? parsed.readText.trim().slice(0, 500) : '';
+
+    const validated = validateQuickAddResult(parsed, readText);
+    if (!validated.valid) {
+      return res.status(422).json({ error: validated.error, aiUnavailable: false, readText });
+    }
+
+    return res.status(200).json({ readText, entry: validated.entry });
+  } catch (err) {
+    console.error('quick-add image error:', err);
+    return res.status(500).json({ error: 'Something went wrong while processing the image' });
+  }
+}
 /**
  * GET /api/entries
  * Query params: type (sale|expense), startDate, endDate (YYYY-MM-DD),
@@ -301,4 +359,4 @@ async function listCategories(req, res) {
   }
 }
 
-module.exports = { create, quickAdd, quickAddVoice, list, remove, stats, greeting, listCategories };
+module.exports = { create, quickAdd, quickAddVoice, quickAddImage, list, remove, stats, greeting, listCategories };

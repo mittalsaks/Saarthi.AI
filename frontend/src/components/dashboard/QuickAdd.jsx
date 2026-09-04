@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../../lib/api';
 
 const MAX_RECORD_SECONDS = 20;
+const MAX_IMAGE_BYTES = 6 * 1024 * 1024; // keep in sync with backend MAX_IMAGE_BYTES
 // Preferred order of MediaRecorder mime types - browsers vary in what
 // they support, so we probe down this list and use whatever sticks.
 const CANDIDATE_MIME_TYPES = [
@@ -27,12 +28,13 @@ function blobToBase64(blob) {
       const base64 = String(result).split(',')[1] || '';
       resolve(base64);
     };
-    reader.onerror = () => reject(new Error('Could not read the recording'));
+    reader.onerror = () => reject(new Error('Could not read the file'));
     reader.readAsDataURL(blob);
   });
 }
 
-// 'idle' -> 'recording' -> 'review-audio' -> 'transcribing' -> 'review-entry' -> 'saving'
+// Voice: 'idle' -> 'recording' -> 'review-audio' -> 'transcribing' -> 'review-entry' -> 'saving'
+// Image: 'idle' -> 'review-image' -> 'processing' -> 'review-entry' -> 'saving'
 export default function QuickAdd({ onAdded, onFallbackToManual }) {
   const { t } = useTranslation();
   const EXAMPLES = [
@@ -58,13 +60,22 @@ export default function QuickAdd({ onAdded, onFallbackToManual }) {
   const timerRef = useRef(null);
   const audioBlobRef = useRef(null);
 
+  // ---- Image quick-add state ----
+  const [imageStage, setImageStage] = useState('idle');
+  const [imageError, setImageError] = useState('');
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('');
+  const [imageDraft, setImageDraft] = useState(null); // { readText, entry }
+  const imageInputRef = useRef(null);
+  const imageFileRef = useRef(null);
+
   useEffect(() => {
-    // Stop any live mic stream + release the object URL if the
+    // Stop any live mic stream + release object URLs if the
     // component unmounts mid-recording/review.
     return () => {
       stopTimer();
       streamRef.current?.getTracks().forEach((t) => t.stop());
       if (audioUrl) URL.revokeObjectURL(audioUrl);
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -88,6 +99,15 @@ export default function QuickAdd({ onAdded, onFallbackToManual }) {
     setDraft(null);
     setElapsedSeconds(0);
     setVoiceStage('idle');
+  }
+
+  function resetImageFlow() {
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+    setImagePreviewUrl('');
+    imageFileRef.current = null;
+    setImageDraft(null);
+    setImageStage('idle');
+    if (imageInputRef.current) imageInputRef.current.value = '';
   }
 
   async function handleMicClick() {
@@ -224,6 +244,84 @@ export default function QuickAdd({ onAdded, onFallbackToManual }) {
     }
   }
 
+  // ---- Image quick-add handlers ----
+  function handlePhotoButtonClick() {
+    setImageError('');
+    setError('');
+    if (imageInputRef.current) {
+      imageInputRef.current.click();
+    } else {
+      setImageError(t('dashboard.quickAdd.imageUnsupported'));
+    }
+  }
+
+  function handleImageFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type || !file.type.startsWith('image/')) {
+      setImageError(t('dashboard.quickAdd.imageUnsupported'));
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setImageError(t('dashboard.quickAdd.imageTooLarge'));
+      return;
+    }
+
+    imageFileRef.current = file;
+    setImagePreviewUrl(URL.createObjectURL(file));
+    setImageStage('review-image');
+  }
+
+  function handleRetakePhoto() {
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+    setImagePreviewUrl('');
+    imageFileRef.current = null;
+    setImageDraft(null);
+    setImageStage('idle');
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  }
+
+  async function handleSendImage() {
+    const file = imageFileRef.current;
+    if (!file) return;
+
+    setImageStage('processing');
+    setImageError('');
+    try {
+      const base64 = await blobToBase64(file);
+      const data = await api.post('/api/entries/quick-add/image', {
+        image: base64,
+        mimeType: file.type || 'image/jpeg',
+      });
+      setImageDraft(data);
+      setImageStage('review-entry');
+    } catch (err) {
+      if (err.data?.aiUnavailable) {
+        setImageError(t('dashboard.quickAdd.imageAiUnavailable'));
+        onFallbackToManual?.(err.data?.readText || '');
+        resetImageFlow();
+      } else {
+        setImageError(err.message || t('dashboard.quickAdd.imageGenericError'));
+        setImageStage('review-image');
+      }
+    }
+  }
+
+  async function handleConfirmImageEntry() {
+    if (!imageDraft?.entry) return;
+    setImageStage('saving');
+    setImageError('');
+    try {
+      const { entry } = await api.post('/api/entries', imageDraft.entry);
+      onAdded(entry);
+      resetImageFlow();
+    } catch (err) {
+      setImageError(err.message || t('dashboard.quickAdd.imageSaveError'));
+      setImageStage('review-entry');
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!text.trim() || submitting) return;
@@ -245,7 +343,7 @@ export default function QuickAdd({ onAdded, onFallbackToManual }) {
     }
   }
 
-  const showTextForm = voiceStage === 'idle';
+  const showTextForm = voiceStage === 'idle' && imageStage === 'idle';
 
   return (
     <div className="entry-well p-5">
@@ -260,6 +358,18 @@ export default function QuickAdd({ onAdded, onFallbackToManual }) {
           <p className="text-xs text-muted">{t('dashboard.quickAdd.subtitle')}</p>
         </div>
       </div>
+
+      {/* Hidden file input reused for the photo button below - `capture="environment"`
+          nudges mobile browsers to open the camera directly, while still allowing
+          "choose from gallery" on most devices. */}
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleImageFileChange}
+        className="hidden"
+      />
 
       {showTextForm && (
         <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-2 sm:flex-row">
@@ -289,6 +399,18 @@ export default function QuickAdd({ onAdded, onFallbackToManual }) {
               <path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" />
             </svg>
             {t('dashboard.quickAdd.micLabel')}
+          </button>
+          <button
+            type="button"
+            onClick={handlePhotoButtonClick}
+            title={t('dashboard.quickAdd.imageTitle')}
+            className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary/10"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+              <path d="M4 7h3l1.5-2h7L17 7h3a1 1 0 011 1v11a1 1 0 01-1 1H4a1 1 0 01-1-1V8a1 1 0 011-1z" strokeLinejoin="round" />
+              <circle cx="12" cy="13" r="3.5" />
+            </svg>
+            {t('dashboard.quickAdd.imageLabel')}
           </button>
         </form>
       )}
@@ -413,6 +535,102 @@ export default function QuickAdd({ onAdded, onFallbackToManual }) {
       )}
 
       {voiceError && <p className="mt-2 text-xs font-medium text-danger">{voiceError}</p>}
+
+      {/* ---- Image quick-add flow ---- */}
+      {imageStage === 'review-image' && (
+        <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+          <p className="mb-2 text-sm font-semibold text-slate-800">{t('dashboard.quickAdd.reviewImageTitle')}</p>
+          {imagePreviewUrl && (
+            <img src={imagePreviewUrl} alt="" className="max-h-64 w-full rounded-md object-contain" />
+          )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleSendImage}
+              className="rounded-lg bg-cta-gradient px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90"
+            >
+              {t('dashboard.quickAdd.send')}
+            </button>
+            <button
+              type="button"
+              onClick={handleRetakePhoto}
+              className="rounded-lg border border-surface-500 px-4 py-2 text-xs font-bold text-muted hover:text-slate-700"
+            >
+              {t('dashboard.quickAdd.retakePhoto')}
+            </button>
+            <button
+              type="button"
+              onClick={resetImageFlow}
+              className="rounded-lg px-4 py-2 text-xs font-bold text-muted hover:text-danger"
+            >
+              {t('dashboard.quickAdd.cancel')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {imageStage === 'processing' && (
+        <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-semibold text-slate-800">
+          {t('dashboard.quickAdd.understandingImage')}
+        </div>
+      )}
+
+      {imageStage === 'review-entry' && imageDraft?.entry && (
+        <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-light">
+            {t('dashboard.quickAdd.reviewEntryTitle')}
+          </p>
+          {imageDraft.readText && (
+            <p className="mb-2 rounded-md bg-white px-3 py-2 text-xs italic text-muted">"{imageDraft.readText}"</p>
+          )}
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+            <span className="text-muted">{t('dashboard.quickAdd.fieldType')}</span>
+            <span className="font-semibold capitalize text-slate-800">{imageDraft.entry.type}</span>
+            <span className="text-muted">{t('dashboard.quickAdd.fieldAmount')}</span>
+            <span className="font-semibold text-slate-800">₹{imageDraft.entry.amount}</span>
+            <span className="text-muted">{t('dashboard.quickAdd.fieldCategory')}</span>
+            <span className="font-semibold capitalize text-slate-800">{imageDraft.entry.category}</span>
+            {imageDraft.entry.description && (
+              <>
+                <span className="text-muted">{t('dashboard.quickAdd.fieldNote')}</span>
+                <span className="font-semibold text-slate-800">{imageDraft.entry.description}</span>
+              </>
+            )}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleConfirmImageEntry}
+              disabled={imageStage === 'saving'}
+              className="rounded-lg bg-cta-gradient px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-90 disabled:opacity-60"
+            >
+              {t('dashboard.quickAdd.confirmSave')}
+            </button>
+            <button
+              type="button"
+              onClick={handleRetakePhoto}
+              className="rounded-lg border border-surface-500 px-4 py-2 text-xs font-bold text-muted hover:text-slate-700"
+            >
+              {t('dashboard.quickAdd.retakePhoto')}
+            </button>
+            <button
+              type="button"
+              onClick={resetImageFlow}
+              className="rounded-lg px-4 py-2 text-xs font-bold text-muted hover:text-danger"
+            >
+              {t('dashboard.quickAdd.discard')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {imageStage === 'saving' && (
+        <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-semibold text-slate-800">
+          {t('dashboard.quickAdd.savingEntry')}
+        </div>
+      )}
+
+      {imageError && <p className="mt-2 text-xs font-medium text-danger">{imageError}</p>}
 
       {showTextForm && (
         <div className="mt-3 flex flex-wrap gap-2">

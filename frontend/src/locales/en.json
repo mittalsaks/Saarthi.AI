@@ -222,7 +222,17 @@
       "voiceGenericError": "Didn't quite catch that, try again or use the manual form.",
       "voiceSaveError": "Couldn't save, please try again.",
       "textAiUnavailable": "AI isn't responding right now — use the manual form below.",
-      "textGenericError": "Didn't quite catch that, try again or use the manual form."
+      "textGenericError": "Didn't quite catch that, try again or use the manual form.",
+      "imageTitle": "Add entry from a photo",
+      "imageLabel": "Photo",
+      "imageUnsupported": "Couldn't open the camera/file picker on this device.",
+      "imageTooLarge": "Image is too large — please use a smaller photo (under 6MB).",
+      "reviewImageTitle": "Check the photo, then send it",
+      "retakePhoto": "Retake / choose another",
+      "understandingImage": "Reading the photo...",
+      "imageAiUnavailable": "AI couldn't read that image — use the manual form below.",
+      "imageGenericError": "Couldn't read that clearly, try another photo or use the manual form.",
+      "imageSaveError": "Couldn't save, please try again."
     }
   },
   "analytics": {

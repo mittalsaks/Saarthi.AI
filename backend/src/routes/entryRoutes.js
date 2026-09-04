@@ -1,9 +1,11 @@
 const express = require('express');
 const { requireAuth } = require('../middleware/requireAuth');
+const { aiLimiter } = require('../middleware/rateLimiters');
 const {
   create,
   quickAdd,
   quickAddVoice,
+  quickAddImage,
   list,
   remove,
   stats,
@@ -20,9 +22,9 @@ router.use(requireAuth);
 router.get('/stats', stats);
 router.get('/greeting', greeting);
 router.get('/categories', listCategories);
-router.post('/quick-add', quickAdd);
-router.post('/quick-add/voice', quickAddVoice);
-
+router.post('/quick-add', aiLimiter, quickAdd);
+router.post('/quick-add/voice', aiLimiter, quickAddVoice);
+router.post('/quick-add/image', aiLimiter, quickAddImage);
 router.get('/', list);
 router.post('/', create);
 router.delete('/:id', remove);

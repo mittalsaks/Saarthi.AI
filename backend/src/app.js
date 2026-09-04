@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
 
 const authRoutes = require('./routes/authRoutes');
 const entryRoutes = require('./routes/entryRoutes');
@@ -11,12 +13,34 @@ const reportRoutes = require('./routes/reportRoutes');
 const systemHealthRoutes = require('./routes/systemHealthRoutes');
 const { requireAuth } = require('./middleware/requireAuth');
 const { scopeToTenant } = require('./middleware/tenantScope');
+const { generalLimiter } = require('./middleware/rateLimiters');
 const User = require('./models/User');
+
+// Comma-separated list of allowed frontend origins, e.g.
+// "http://localhost:5173,https://app.dukkanai.com". Falls back to
+// allowing any origin only when explicitly unset (local dev).
+const allowedOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
 
 function createApp() {
   const app = express();
-
-  app.use(cors());
+  app.set('trust proxy', 1);
+  app.use(helmet());
+  app.use(
+    cors({
+      origin(origin, callback) {
+        // Allow non-browser requests (curl/Postman/no Origin header)
+        // and any origin when CORS_ORIGINS isn't configured yet.
+        if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+        return callback(new Error('Not allowed by CORS'));
+      },
+      credentials: true,
+    })
+  );
   // Default JSON limit (100kb) is plenty for every route except voice
   // quick-add, which carries a base64-encoded audio clip (<=20s,
   // capped at ~8MB raw / ~11MB base64 - see entryController.js). Raise
@@ -31,6 +55,12 @@ function createApp() {
     }
     return next(err);
   });
+  // Strips any request key starting with '$' or containing '.' from
+  // body/params/query, blocking NoSQL-injection-style operator payloads.
+  app.use(mongoSanitize());
+  // Global soft rate-limit on every /api route; stricter limiters are
+  // layered on top for auth and AI endpoints in their own route files.
+  app.use('/api', generalLimiter);
 
   // Simple liveness check - useful for deploy platforms (Render/Vercel)
   // and expanded into the real /system-health page in Part 10.

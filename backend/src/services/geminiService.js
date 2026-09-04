@@ -209,7 +209,68 @@ Output ONLY the JSON object.`;
 
   return parsed;
 }
+/**
+ * Image counterpart to parseEntryFromText()/parseEntryFromAudio().
+ * Sends a photo (receipt/bill/handwritten khata page) straight to
+ * Gemini's multimodal input and asks it to read whatever text/numbers
+ * are visible and extract ONE sale or expense from it. Returns the RAW
+ * parsed object (now including a `readText` key, the OCR-style best
+ * guess of what's written) - same golden rule as the other quick-add
+ * paths: this function does not touch Mongo and does not decide what's
+ * valid. The caller (entryController) validates every field via
+ * validateQuickAdd.js before anything reaches the database.
+ */
+async function parseEntryFromImage(base64Image, mimeType, languagePref = 'English') {
+  const today = new Date().toISOString().slice(0, 10);
 
+  const prompt = `You are a data extraction assistant for a small Indian shop's
+bookkeeping app. Attached is a photo the shop owner took - it could be a
+paper bill/receipt, a handwritten khata page, or a stock label. The owner
+prefers responses in ${languagePref}.
+
+First read whatever text/numbers are visible in the image, then extract ONE
+sale or expense from it into a single JSON object and output ONLY that JSON
+object - no markdown fences, no explanation, no extra text before or after
+it. If the image contains multiple line items, use the TOTAL amount, not
+one line item.
+
+Shape (all keys required):
+{
+  "readText": <a short plain-text summary of what you could read on the image, in the language/script it appears in>,
+  "type": "sale" or "expense",
+  "amount": <number, just the numeric value, no currency symbol - use the TOTAL if multiple items are visible>,
+  "category": <short lowercase category like "grocery", "rent", "electricity", "stock purchase", "transport", "salary", "misc">,
+  "description": <short human-readable description, max 15 words>,
+  "date": <"YYYY-MM-DD", use ${today} if no date is visible on the image>
+}
+
+Rules:
+- A shop bill/receipt for goods bought BY the shop -> type "expense".
+- A sale receipt/slip issued BY the shop to a customer -> type "sale".
+- A handwritten khata page is usually an expense note unless it clearly says "sold"/"becha"/"bikri".
+- If the amount is ambiguous, unclear, or nothing legible is visible, put 0 for amount and leave readText as best-effort (empty string if nothing usable).
+- If you truly cannot classify type, use "expense".
+- Never invent an amount that isn't actually visible in the image.
+
+Output ONLY the JSON object.`;
+
+  const parts = [
+    { text: prompt },
+    { inline_data: { mime_type: mimeType, data: base64Image } },
+  ];
+
+  const raw = await callGeminiMultimodal(parts, { temperature: 0.2 });
+  const cleaned = stripCodeFences(raw);
+
+  let parsed;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    throw new Error('Could not read that image - please try a clearer photo or use the manual form');
+  }
+
+  return parsed;
+}
 /**
  * Generates a 1-2 sentence greeting narrating numbers the backend
  * already computed. `stats` must be plain already-correct numbers -
@@ -476,6 +537,7 @@ module.exports = {
   callGemini,
   parseEntryFromText,
   parseEntryFromAudio,
+  parseEntryFromImage,
   generateGreeting,
   generateBusinessSummary,
   explainNumber,

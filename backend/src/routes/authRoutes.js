@@ -12,16 +12,17 @@ const {
   resetPassword,
 } = require('../controllers/authController');
 const { requireAuth } = require('../middleware/requireAuth');
+const { authLimiter } = require('../middleware/rateLimiters');
 
 const router = express.Router();
 
-router.post('/register', register);
-router.post('/register/request-otp', requestRegisterOtp);
-router.post('/register/verify-otp', verifyRegisterOtp);
-router.post('/login', login);
-router.post('/google', googleAuth);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPassword);
+router.post('/register', authLimiter, register);
+router.post('/register/request-otp', authLimiter, requestRegisterOtp);
+router.post('/register/verify-otp', authLimiter, verifyRegisterOtp);
+router.post('/login', authLimiter, login);
+router.post('/google', authLimiter, googleAuth);
+router.post('/forgot-password', authLimiter, forgotPassword);
+router.post('/reset-password', authLimiter, resetPassword);
 router.post('/logout', logout);
 router.get('/me', requireAuth, me);
 router.patch('/language', requireAuth, updateLanguage);

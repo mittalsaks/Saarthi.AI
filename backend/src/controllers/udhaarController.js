@@ -7,6 +7,7 @@ const udhaarService = require('../services/udhaarService');
 const geminiService = require('../services/geminiService');
 const smsService = require('../services/smsService');
 const emailService = require('../services/emailService');
+const udhaarAutomationService = require('../services/udhaarAutomationService');
 
 /**
  * POST /api/udhaar/customers
@@ -343,6 +344,41 @@ async function summary(req, res) {
   }
 }
 
+/**
+ * POST /api/udhaar/run-daily-jobs
+ * Manually runs today's automatic customer reminders + admin digest
+ * for the CALLER'S OWN tenant only (never loops over other tenants -
+ * that's jobs/udhaarCron.js's job, nightly at 08:30 server time).
+ *
+ * Two uses:
+ * 1. Testing - trigger it on demand instead of waiting for 08:30.
+ * 2. Reliability - point an external scheduler (e.g. cron-job.org,
+ *    UptimeRobot) at this endpoint once a day. That guarantees it runs
+ *    even if the backend is on a host (like Render's free tier) that
+ *    spins the process down after inactivity, since in-process
+ *    node-cron only fires while the process happens to be awake.
+ */
+async function runDailyJobs(req, res) {
+  try {
+    const tenant = await Tenant.findById(req.tenantId);
+    const admin = await User.findOne({ tenantId: req.tenantId }).sort({ createdAt: 1 });
+
+    const context = {
+      ownerName: admin?.name || 'The shop owner',
+      shopName: tenant?.shopName,
+      languagePref: admin?.languagePref || 'Hinglish',
+    };
+
+    const reminders = await udhaarAutomationService.sendDailyReminders(req.tenantId, context);
+    const digest = await udhaarAutomationService.sendAdminDailyDigest(req.tenantId, context);
+
+    return res.status(200).json({ reminders, digest });
+  } catch (err) {
+    console.error('manual udhaar daily job run error:', err);
+    return res.status(500).json({ error: 'Something went wrong while running the daily udhaar jobs' });
+  }
+}
+
 module.exports = {
   createCustomer,
   listCustomers,
@@ -352,4 +388,5 @@ module.exports = {
   sendReminder,
   removeCustomer,
   summary,
+  runDailyJobs,
 };

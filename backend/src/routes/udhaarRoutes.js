@@ -9,6 +9,7 @@ const {
   sendReminder,
   removeCustomer,
   summary,
+  runDailyJobs,
 } = require('../controllers/udhaarController');
 
 const router = express.Router();
@@ -17,6 +18,7 @@ router.use(requireAuth);
 
 // Specific path before /customers/:id so it never gets swallowed by the param route.
 router.get('/summary', summary);
+router.post('/run-daily-jobs', runDailyJobs);
 
 router.get('/customers', listCustomers);
 router.post('/customers', createCustomer);
