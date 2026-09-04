@@ -11,7 +11,7 @@
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](#-tech-stack)
 [![Gemini](https://img.shields.io/badge/Gemini-2.0--flash-4285F4?logo=googlegemini&logoColor=white)](#-tech-stack)
 
-[**🚀 Live App**](https://saarthi-ai-frontend.onrender.com) · [**🔗 API**](https://saarthi-ai-umhe.onrender.com)
+[**🚀 Live App**](https://saarthi-ai-frontend.onrender.com) · [System Design Write-up](./SYSTEM_DESIGN.md)
 
 </div>
 
@@ -37,6 +37,7 @@
 - [Environment Variables](#-environment-variables)
 - [Database Schema](#-database-schema)
 - [API Reference](#-api-reference)
+- [System Design](#-system-design)
 - [Deployment](#-deployment)
 - [Live Demo](#-live-demo)
 
@@ -207,10 +208,36 @@ Every shop is a `Tenant`, and every other collection (`User`, `Entry`, `StockIte
 
 ### 5️⃣ Analytics
 
-<p align="center">
-  <img src="docs/screenshots/08-analytics-pie.png" width="500" alt="Sales vs expenses pie chart" />
-</p>
-<p align="center"><em>Sales vs expenses, switchable between Area, Bar, Line and Pie views.</em></p>
+One dataset, four ways to read it. The same `/api/analytics/overview` response drives all four chart views below — switching tabs is instant (no refetch), and hovering any point shows the exact sales/expense split for that day. Pick whichever shape answers your question fastest: **Area** for the overall trend at a glance, **Bar** to compare specific days, **Line** to spot the exact day something changed, **Pie** for the sales-vs-expenses split over the whole range.
+
+<table>
+<tr>
+<td width="50%">
+
+**Area — overall trend**
+<img src="docs/screenshots/08a-analytics-area.png" width="100%" alt="Sales vs expenses area chart" />
+</td>
+<td width="50%">
+
+**Bar — day-by-day comparison, with tooltip**
+<img src="docs/screenshots/08b-analytics-bar.png" width="100%" alt="Sales vs expenses bar chart" />
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Line — pinpoint the exact day something changed**
+<img src="docs/screenshots/08c-analytics-line.png" width="100%" alt="Sales vs expenses line chart" />
+</td>
+<td width="50%">
+
+**Pie — sales vs expenses split for the range**
+<img src="docs/screenshots/08d-analytics-pie.png" width="100%" alt="Sales vs expenses pie chart" />
+</td>
+</tr>
+</table>
+
+Below the chart, `CategoryBreakdown` ranks categories by amount so an owner can answer "what's actually driving this number" in one glance, and `ExplainNumberModal` lets them tap any stat card to get a short AI-written explanation of it — grounded strictly in the numbers already computed by `statsService`, per the [golden rule](#-the-golden-rule--ai-never-calculates).
 
 ### 6️⃣ Stock
 
@@ -465,7 +492,29 @@ erDiagram
 
 ## 📡 API Reference
 
-Base URL: `/api`. All routes except `register`/`login`/`google`/`forgot-password`/`reset-password`/`/system-health` require a `Bearer` JWT.
+Base URL: `/api`. All routes except `register`/`login`/`google`/`forgot-password`/`reset-password`/`/system-health` require a `Bearer` JWT — the live backend URL only serves JSON under this base path, so opening it bare in a browser correctly shows a 404; hit `https://saarthi-ai-umhe.onrender.com/api/health` for a liveness check instead.
+
+**How a request actually flows, end to end:**
+
+```mermaid
+flowchart LR
+    classDef fe fill:#0f172a,stroke:#38bdf8,color:#e2e8f0,stroke-width:2px
+    classDef mid fill:#0f172a,stroke:#fbbf24,color:#e2e8f0,stroke-width:2px
+    classDef ctrl fill:#0f172a,stroke:#a78bfa,color:#e2e8f0,stroke-width:2px
+    classDef svc fill:#0f172a,stroke:#f472b6,color:#e2e8f0,stroke-width:2px
+    classDef db fill:#065f46,stroke:#10b981,color:#ffffff,stroke-width:2px
+
+    A["🖥️ React SPA<br/><sub>lib/api.js</sub>"]:::fe -->|"HTTPS + Bearer JWT"| B["🛡️ Helmet · CORS ·<br/>rate limiter"]:::mid
+    B --> C["🔑 requireAuth<br/><sub>verifies JWT → req.tenantId</sub>"]:::mid
+    C --> D["🎯 Controller<br/><sub>auth / entries / stock / udhaar / alerts / reports</sub>"]:::ctrl
+    D --> E["🧮 Service layer<br/><sub>statsService · alertService · udhaarService</sub>"]:::svc
+    D -.->|"quick-add / greeting / reminder only"| F["🤖 geminiService"]:::svc
+    E --> G["🔒 scopeToTenant()<br/><sub>tenantId always injected</sub>"]:::mid
+    G --> H[("🗄️ MongoDB Atlas")]:::db
+    H --> G --> E --> D --> A
+```
+
+Every arrow above is a real, tested path in this repo — not aspirational. Full reasoning for each piece lives in [`SYSTEM_DESIGN.md`](./SYSTEM_DESIGN.md).
 
 <details>
 <summary><strong>Auth — <code>/api/auth</code></strong></summary>
@@ -575,6 +624,30 @@ Base URL: `/api`. All routes except `register`/`login`/`google`/`forgot-password
 | GET | `/` | Public status endpoint backing the `/system-health` page |
 
 </details>
+
+---
+
+## 🧩 System Design
+
+The four decisions that shape this codebase most — click through to [`SYSTEM_DESIGN.md`](./SYSTEM_DESIGN.md) for the full diagrams + reasoning behind each one:
+
+| # | Decision | One-line summary |
+|---|---|---|
+| 1 | [AI Quick-Add Pipeline](./SYSTEM_DESIGN.md#1-ai-quick-add-pipeline) | Text/voice/photo → Gemini *guesses* → `validateQuickAddResult()` sanitizes & caps it → only then does it touch MongoDB |
+| 2 | [Multi-Tenant Isolation](./SYSTEM_DESIGN.md#2-multi-tenant-isolation) | Every query is routed through `scopeToTenant()`, which injects `tenantId` last on reads and strips it from writes — no controller can accidentally cross tenants |
+| 3 | [Alert Automation](./SYSTEM_DESIGN.md#3-alert-automation) | Deterministic JS rules decide *if* and *how severe* an alert is; Gemini only phrases the sentence, and a `(tenant, type, day)` unique index stops duplicate spam |
+| 4 | [Udhaar Ledger Integrity](./SYSTEM_DESIGN.md#4-udhaar-ledger-integrity) | A customer's balance is never stored — it's always `sum(credit) − sum(payment)`, recomputed from the transaction log, so it can never silently drift |
+
+```mermaid
+flowchart TD
+    classDef rule fill:#0f172a,stroke:#f472b6,color:#e2e8f0,stroke-width:2px
+    classDef safe fill:#065f46,stroke:#10b981,color:#ffffff,stroke-width:2px
+
+    R["🧠 Golden Rule<br/>AI never calculates a number"]:::rule --> P1["1️⃣ Quick-Add<br/>validated before save"]:::safe
+    R --> P2["2️⃣ Tenant Isolation<br/>scoped on every query"]:::safe
+    R --> P3["3️⃣ Alerts<br/>plain-JS thresholds, AI only phrases"]:::safe
+    R --> P4["4️⃣ Udhaar Ledger<br/>balance always derived, never stored"]:::safe
+```
 
 ---
 
