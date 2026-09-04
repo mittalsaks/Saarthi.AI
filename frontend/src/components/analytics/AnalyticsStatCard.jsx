@@ -78,11 +78,20 @@ export default function AnalyticsStatCard({
       disabled={loading}
       className="stat-card group w-full p-5 text-left disabled:cursor-default"
     >
+      {/* Always-visible "this opens something" badge - the old version only
+          showed on hover, which is invisible on touch devices and made the
+          whole click-for-AI-insight feature undiscoverable. */}
+      <span className="card-tap-badge">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+          <path d="M12 2a7 7 0 00-4 12.74V17a1 1 0 001 1h6a1 1 0 001-1v-2.26A7 7 0 0012 2zM9 21h6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        Ask AI
+      </span>
       <div
         className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-[0.14] transition group-hover:scale-125"
         style={{ background: ACCENT_GRADIENTS[accent] || ACCENT_GRADIENTS.primary }}
       />
-      <div className="relative flex items-center justify-between">
+      <div className="relative flex items-center justify-between pr-14">
         <span
           className="flex h-10 w-10 items-center justify-center rounded-2xl shadow-soft transition group-hover:scale-105"
           style={{ background: ACCENT_GRADIENTS[accent] || ACCENT_GRADIENTS.primary }}
@@ -101,8 +110,8 @@ export default function AnalyticsStatCard({
         {loading ? <span className="inline-block h-7 w-24 animate-pulse rounded bg-surface-300" /> : displayValue}
       </p>
       <p className="relative mt-0.5 text-xs font-semibold uppercase tracking-wide text-muted">{label}</p>
-      <span className="relative mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-primary opacity-0 transition group-hover:opacity-100">
-        Ask AI
+      <span className="card-open-hint relative mt-1.5 items-center gap-1 text-[11px] font-semibold text-primary">
+        Tap to ask AI why
         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
           <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>

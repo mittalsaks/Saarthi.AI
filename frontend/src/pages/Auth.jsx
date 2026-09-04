@@ -555,16 +555,18 @@ export default function Auth() {
   const [googleError, setGoogleError] = useState('');
 
   useEffect(() => {
-    if (isLoggedIn()) {
-      navigate('/dashboard', { replace: true });
-      return;
-    }
     // A password-reset email link lands here as /auth?resetToken=...
+    // Check this BEFORE the isLoggedIn redirect, so a stale session in
+    // this browser doesn't skip the reset form.
     const params = new URLSearchParams(window.location.search);
     const tokenFromUrl = params.get('resetToken');
     if (tokenFromUrl) {
       setResetToken(tokenFromUrl);
       setTab('reset');
+      return;
+    }
+    if (isLoggedIn()) {
+      navigate('/dashboard', { replace: true });
     }
   }, [navigate]);
 

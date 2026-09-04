@@ -55,49 +55,78 @@ export default function AddCustomerForm({ open, onToggle, onAdded }) {
       </button>
 
       {open && (
-        <form onSubmit={handleSubmit} className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="text-xs font-medium text-muted">
+        <form onSubmit={handleSubmit} className="mt-4 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+          <label className="text-xs font-semibold text-muted">
             {t('udhaar.addForm.nameLabel')}
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => update('name', e.target.value)}
-              className="mt-1 w-full rounded-lg border border-surface-500 px-3 py-2 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              required
-            />
+            <div className="field-shell mt-1">
+              <span className="field-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => update('name', e.target.value)}
+                className="field-input"
+                required
+              />
+            </div>
           </label>
 
-          <label className="text-xs font-medium text-muted">
+          <label className="text-xs font-semibold text-muted">
             {t('udhaar.addForm.phoneLabel')}
-            <input
-              type="tel"
-              value={form.phone}
-              onChange={(e) => update('phone', e.target.value)}
-              placeholder={t('udhaar.addForm.phonePlaceholder')}
-              className="mt-1 w-full rounded-lg border border-surface-500 px-3 py-2 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
+            <div className="field-shell mt-1">
+              <span className="field-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={(e) => update('phone', e.target.value)}
+                placeholder={t('udhaar.addForm.phonePlaceholder')}
+                className="field-input"
+              />
+            </div>
           </label>
 
-          <label className="text-xs font-medium text-muted">
+          <label className="text-xs font-semibold text-muted">
             {t('udhaar.addForm.emailLabel')}
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => update('email', e.target.value)}
-              placeholder={t('udhaar.addForm.optionalPlaceholder')}
-              className="mt-1 w-full rounded-lg border border-surface-500 px-3 py-2 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
+            <div className="field-shell mt-1">
+              <span className="field-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M22 6l-10 7L2 6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => update('email', e.target.value)}
+                placeholder={t('udhaar.addForm.optionalPlaceholder')}
+                className="field-input"
+              />
+            </div>
           </label>
 
-          <label className="text-xs font-medium text-muted sm:col-span-2">
+          <label className="text-xs font-semibold text-muted sm:col-span-2">
             {t('udhaar.addForm.noteLabel')}
-            <input
-              type="text"
-              value={form.note}
-              onChange={(e) => update('note', e.target.value)}
-              placeholder={t('udhaar.addForm.optionalPlaceholder')}
-              className="mt-1 w-full rounded-lg border border-surface-500 px-3 py-2 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
+            <div className="field-shell mt-1">
+              <span className="field-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M17 3a2.85 2.85 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <input
+                type="text"
+                value={form.note}
+                onChange={(e) => update('note', e.target.value)}
+                placeholder={t('udhaar.addForm.optionalPlaceholder')}
+                className="field-input"
+              />
+            </div>
           </label>
 
           {error && <p className="text-xs font-medium text-danger sm:col-span-2">{error}</p>}
@@ -105,7 +134,7 @@ export default function AddCustomerForm({ open, onToggle, onAdded }) {
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-2"
+            className="rounded-lg bg-cta-gradient px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-2"
           >
             {submitting ? t('udhaar.addForm.saving') : t('udhaar.addForm.saveButton')}
           </button>

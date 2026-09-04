@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 const LOW_COLOR = '#dc2626';
 const OK_COLOR = '#2563eb';
@@ -38,8 +38,15 @@ export default function StockLevelsChart({ items, loading }) {
 
   return (
     <div className="panel-card p-5">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-800">{t('stock.chart.title')}</h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-800">{t('stock.chart.title')}</h3>
+          <p className="mt-0.5 text-xs text-muted">
+            {items.length <= 8
+              ? `${items.length} item${items.length === 1 ? '' : 's'} tracked`
+              : `Top 8 of ${items.length} items by quantity`}
+          </p>
+        </div>
         <div className="flex items-center gap-3 text-[11px] font-semibold text-muted">
           <span className="flex items-center gap-1">
             <span className="h-2 w-2 rounded-full" style={{ background: OK_COLOR }} /> {t('stock.chart.legendOk')}
@@ -51,7 +58,7 @@ export default function StockLevelsChart({ items, loading }) {
       </div>
       <div className="mt-3 h-56">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+          <BarChart data={data} margin={{ top: 20, right: 8, left: -18, bottom: 0 }}>
             <CartesianGrid vertical={false} stroke="#eaf2ff" />
             <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#5c6c86' }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 11, fill: '#5c6c86' }} axisLine={false} tickLine={false} allowDecimals={false} />
@@ -78,10 +85,16 @@ export default function StockLevelsChart({ items, loading }) {
               }}
               labelStyle={{ color: '#bfdbfe', fontWeight: 700 }}
             />
-            <Bar dataKey="qty" radius={[6, 6, 0, 0]} maxBarSize={34} animationDuration={900} animationEasing="ease-out">
+            <Bar dataKey="qty" radius={[6, 6, 0, 0]} barSize={data.length <= 3 ? 56 : undefined} maxBarSize={34} animationDuration={900} animationEasing="ease-out">
               {data.map((d, i) => (
                 <Cell key={i} fill={d.low ? 'url(#stockLowFill)' : 'url(#stockOkFill)'} />
               ))}
+              <LabelList
+                dataKey="qty"
+                position="top"
+                formatter={(v, entry) => `${v}`}
+                style={{ fontSize: 11, fontWeight: 700, fill: '#334155' }}
+              />
             </Bar>
           </BarChart>
         </ResponsiveContainer>

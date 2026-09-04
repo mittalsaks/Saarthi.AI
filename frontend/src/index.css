@@ -25,24 +25,32 @@ body {
 /* ===================================================================
    Animated app-shell background: used on every logged-in page wrapper
    in place of a flat surface color. Soft drifting aurora glows + a
-   faint blueprint grid, both fixed to the viewport so they read as an
+   faint blueprint grid, fixed to the viewport so they read as an
    ambient 3D backdrop instead of scrolling flatly with the content.
+
+   IMPORTANT stacking-context note: `.app-shell-bg` gets `isolation:
+   isolate` so its own z-index values are scoped locally, and its real
+   content (`.shell-content`) is pinned to z-index 10 - both are needed
+   or the decorative layers (z-index 0/1) can accidentally paint OVER
+   the page's own normal-flow content instead of behind it, which is
+   what made every page look flat/empty before.
    =================================================================== */
 .app-shell-bg {
   position: relative;
-  background: linear-gradient(180deg, #eef4ff 0%, #f4f8ff 45%, #f6f9ff 100%);
+  isolation: isolate;
+  background: linear-gradient(180deg, #e3ecff 0%, #edf4ff 45%, #f2f7ff 100%);
 }
 .app-shell-bg::before {
   content: '';
   position: fixed;
   inset: 0;
-  z-index: -2;
+  z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 900px 500px at 85% -10%, rgba(96, 165, 250, 0.32), transparent 60%),
-    radial-gradient(ellipse 700px 500px at -10% 25%, rgba(34, 211, 238, 0.2), transparent 60%),
-    radial-gradient(ellipse 650px 500px at 60% 100%, rgba(124, 109, 242, 0.18), transparent 60%),
-    radial-gradient(ellipse 500px 400px at 20% 85%, rgba(16, 185, 129, 0.1), transparent 60%);
+    radial-gradient(ellipse 950px 560px at 85% -10%, rgba(96, 165, 250, 0.46), transparent 60%),
+    radial-gradient(ellipse 750px 540px at -10% 22%, rgba(34, 211, 238, 0.32), transparent 60%),
+    radial-gradient(ellipse 700px 540px at 60% 100%, rgba(124, 109, 242, 0.28), transparent 60%),
+    radial-gradient(ellipse 550px 440px at 20% 85%, rgba(16, 185, 129, 0.18), transparent 60%);
   background-attachment: fixed;
   animation: auroraDrift 18s ease-in-out infinite;
 }
@@ -50,11 +58,11 @@ body {
   content: '';
   position: fixed;
   inset: 0;
-  z-index: -2;
+  z-index: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(90deg, rgba(37, 99, 235, 0.07) 1px, transparent 1px),
-    linear-gradient(rgba(37, 99, 235, 0.07) 1px, transparent 1px);
+    linear-gradient(90deg, rgba(37, 99, 235, 0.1) 1px, transparent 1px),
+    linear-gradient(rgba(37, 99, 235, 0.1) 1px, transparent 1px);
   background-size: 46px 46px;
   -webkit-mask-image: radial-gradient(ellipse 1300px 900px at 65% 5%, #000 40%, transparent 78%);
   mask-image: radial-gradient(ellipse 1300px 900px at 65% 5%, #000 40%, transparent 78%);
@@ -64,14 +72,22 @@ body {
   50% { background-position: -60px 30px, 50px -25px, -30px -20px, 20px 20px; }
 }
 
+/* Real page content (sidebar + topbar + <main>) sits in here on every
+   logged-in page, explicitly above the aurora/grid layers above. */
+.shell-content {
+  position: relative;
+  z-index: 10;
+}
+
 /* Small drifting 3D-ish decorative shapes rendered once (fixed to the
    viewport) alongside the sidebar, so every inner page feels alive
-   instead of a plain flat canvas. Purely decorative, no interaction. */
+   instead of a plain flat canvas. Purely decorative, no interaction.
+   z-index sits above the aurora (0) but below `.shell-content` (10). */
 .floating-shape {
   position: fixed;
-  z-index: -1;
+  z-index: 1;
   pointer-events: none;
-  opacity: 0.5;
+  opacity: 0.55;
 }
 .floating-shape.shape-cube {
   width: 58px;
@@ -141,17 +157,17 @@ body {
 .panel-card {
   position: relative;
   border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  background: linear-gradient(165deg, rgba(255, 255, 255, 0.75) 0%, rgba(244, 249, 255, 0.68) 65%, rgba(234, 243, 255, 0.62) 100%);
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
-  box-shadow: 0 1px 2px rgba(15, 30, 61, 0.04), 0 10px 24px -14px rgba(37, 99, 235, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.94) 0%, rgba(248, 251, 255, 0.88) 65%, rgba(240, 247, 255, 0.84) 100%);
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  box-shadow: 0 1px 2px rgba(15, 30, 61, 0.05), 0 14px 32px -14px rgba(37, 99, 235, 0.28), 0 0 0 1px rgba(37, 99, 235, 0.05);
   transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease, border-color 0.35s ease;
 }
 .panel-card:hover {
   transform: perspective(1000px) rotateX(0.6deg) translateY(-3px);
-  box-shadow: 0 1px 2px rgba(15, 30, 61, 0.04), 0 22px 40px -18px rgba(37, 99, 235, 0.32);
-  border-color: rgba(37, 99, 235, 0.28);
+  box-shadow: 0 1px 2px rgba(15, 30, 61, 0.04), 0 24px 46px -18px rgba(37, 99, 235, 0.36);
+  border-color: rgba(37, 99, 235, 0.32);
 }
 
 /* Stat/metric cards: same idea but with a bit more lift + a shine
@@ -160,11 +176,11 @@ body {
   position: relative;
   overflow: hidden;
   border-radius: 1.25rem;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  background: linear-gradient(165deg, rgba(255, 255, 255, 0.78) 0%, rgba(238, 246, 255, 0.68) 70%, rgba(227, 239, 255, 0.62) 100%);
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
-  box-shadow: 0 1px 2px rgba(15, 30, 61, 0.05), 0 12px 26px -14px rgba(37, 99, 235, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.96) 0%, rgba(241, 248, 255, 0.88) 70%, rgba(230, 242, 255, 0.82) 100%);
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  box-shadow: 0 1px 2px rgba(15, 30, 61, 0.06), 0 16px 30px -14px rgba(37, 99, 235, 0.3), 0 0 0 1px rgba(37, 99, 235, 0.05);
   transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease;
 }
 .stat-card:hover {
@@ -234,6 +250,77 @@ body {
 .toggle-bar:hover {
   background: linear-gradient(135deg, rgba(37, 99, 235, 0.16), rgba(8, 145, 178, 0.12));
   border-color: rgba(37, 99, 235, 0.3);
+}
+
+/* Shared form-field look used on the Stock/Udhaar "add" forms in place
+   of plain gray-bordered boxes: white/translucent surface, an icon slot
+   on the left, and a real focus lift so the form doesn't read as flat
+   HTML inputs dropped onto the page. */
+.field-shell {
+  position: relative;
+}
+.field-icon {
+  position: absolute;
+  left: 0.7rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  height: 1.1rem;
+  width: 1.1rem;
+  align-items: center;
+  justify-content: center;
+  color: #7c8aa5;
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+.field-input {
+  width: 100%;
+  border-radius: 0.7rem;
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  background: rgba(255, 255, 255, 0.85);
+  padding: 0.6rem 0.75rem 0.6rem 2.25rem;
+  font-size: 0.875rem;
+  color: #1e293b;
+  box-shadow: 0 1px 2px rgba(15, 30, 61, 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.field-input::placeholder {
+  color: #9aa7bd;
+}
+.field-input:focus {
+  outline: none;
+  border-color: rgba(37, 99, 235, 0.55);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14), 0 4px 14px -6px rgba(37, 99, 235, 0.35);
+}
+.field-shell:focus-within .field-icon {
+  color: #2563eb;
+}
+
+/* Persistent (not hover-only) "this card opens something" affordance,
+   used on Analytics stat cards so the feature is discoverable on touch
+   devices too, not just when a mouse happens to hover the card. */
+.card-tap-badge {
+  position: absolute;
+  right: 0.6rem;
+  top: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  border-radius: 9999px;
+  background: rgba(37, 99, 235, 0.1);
+  padding: 0.2rem 0.5rem;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #2563eb;
+  opacity: 0.85;
+  transition: opacity 0.2s ease, background 0.2s ease;
+}
+.stat-card:hover .card-tap-badge,
+.stat-card:focus-within .card-tap-badge {
+  opacity: 1;
+  background: rgba(37, 99, 235, 0.16);
 }
 
 ::selection {
@@ -503,21 +590,28 @@ body {
    blobs baked into its own corners so the nav itself feels part of
    the animated scene rather than a flat opaque strip.
    =================================================================== */
+/* Note: `.sidebar-glass` itself must stay `overflow: visible` (the
+   scrolling happens on `.sidebar-scroll` inside it) - otherwise these
+   ::before/::after glow blobs, which sit partly outside the box on
+   purpose, get clipped away and the panel reads as flat white. */
 .sidebar-glass {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(247, 251, 255, 0.7) 55%, rgba(242, 248, 255, 0.65) 100%);
-  backdrop-filter: blur(22px) saturate(160%);
-  -webkit-backdrop-filter: blur(22px) saturate(160%);
-  box-shadow: 1px 0 0 rgba(37, 99, 235, 0.06), 0 0 40px -12px rgba(37, 99, 235, 0.12);
+  position: fixed;
+  overflow: visible;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88) 0%, rgba(248, 252, 255, 0.82) 55%, rgba(240, 248, 255, 0.78) 100%);
+  backdrop-filter: blur(22px) saturate(170%);
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+  box-shadow: 1px 0 0 rgba(37, 99, 235, 0.08), 0 0 50px -10px rgba(37, 99, 235, 0.2);
 }
 .sidebar-glass::before {
   content: '';
   position: absolute;
   top: -70px;
   right: -70px;
-  width: 190px;
-  height: 190px;
+  width: 220px;
+  height: 220px;
   border-radius: 9999px;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.18), transparent 70%);
+  z-index: 0;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.3), transparent 70%);
   animation: sidebarDrift 22s ease-in-out infinite;
   pointer-events: none;
 }
@@ -526,12 +620,17 @@ body {
   position: absolute;
   bottom: -90px;
   left: -50px;
-  width: 190px;
-  height: 190px;
+  width: 220px;
+  height: 220px;
   border-radius: 9999px;
-  background: radial-gradient(circle, rgba(6, 182, 212, 0.16), transparent 70%);
+  z-index: 0;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.26), transparent 70%);
   animation: sidebarDrift 26s ease-in-out infinite reverse;
   pointer-events: none;
+}
+.sidebar-scroll {
+  position: relative;
+  z-index: 1;
 }
 @keyframes sidebarDrift {
   0%, 100% { transform: translate(0, 0) scale(1); }

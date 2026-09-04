@@ -353,42 +353,24 @@ async function googleAuth(req, res) {
     let user = await User.findOne({ email });
     let tenant;
 
-    if (user) {
-      // Existing account (created via local register) signing in with
-      // Google for the first time - link the googleId, don't touch
-      // anything else about the account.
-      if (!user.googleId) {
-        user.googleId = payload.sub;
-        await user.save();
-      }
-      tenant = await Tenant.findById(user.tenantId);
-      if (!tenant || !tenant.isActive) {
-        return res.status(403).json({ error: 'This account is not active' });
-      }
-    } else {
-      // No existing account - create a new Tenant + User together,
-      // same pattern as register(), but authProvider: 'google' so no
-      // passwordHash is required.
-      tenant = await Tenant.create({
-        shopName: `${name}'s Shop`,
-        ownerName: name,
-        businessType: 'general',
+    if (!user) {
+      // No existing account for this Google email - don't auto-create
+      // one. The person needs to sign up first.
+      return res.status(404).json({
+        error: 'No account found for this Google email. Please create an account first.',
       });
+    }
 
-      try {
-        user = await User.create({
-          tenantId: tenant._id,
-          name,
-          email,
-          authProvider: 'google',
-          googleId: payload.sub,
-          role: 'admin',
-          languagePref: 'English',
-        });
-      } catch (userErr) {
-        await Tenant.findByIdAndDelete(tenant._id);
-        throw userErr;
-      }
+    // Existing account (created via local register or a prior Google
+    // sign-in) - link the googleId if not already linked, don't touch
+    // anything else about the account.
+    if (!user.googleId) {
+      user.googleId = payload.sub;
+      await user.save();
+    }
+    tenant = await Tenant.findById(user.tenantId);
+    if (!tenant || !tenant.isActive) {
+      return res.status(403).json({ error: 'This account is not active' });
     }
 
     const token = signToken({ tenantId: user.tenantId, userId: user._id, role: user.role });

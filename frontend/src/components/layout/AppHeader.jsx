@@ -129,8 +129,13 @@ export default function AppHeader({ shopName, userName }) {
     <>
       <FloatingDecor />
 
-      {/* ---- Sidebar (fixed, full height, hidden on small screens) ---- */}
-      <aside className="sidebar-glass fixed inset-y-0 left-0 z-20 hidden w-64 flex-col gap-1 overflow-y-auto border-r border-white/50 px-4 py-6 scroll-thin lg:flex">
+      {/* ---- Sidebar (fixed, full height, hidden on small screens) ----
+          Scrolling lives on the INNER `.sidebar-scroll` wrapper, not on
+          `.sidebar-glass` itself - the glass panel needs `overflow:
+          visible` so its glow blobs (positioned partly outside the box)
+          don't get clipped away. */}
+      <aside className="sidebar-glass inset-y-0 left-0 z-20 hidden w-64 border-r border-white/50 lg:flex">
+        <div className="sidebar-scroll flex w-full flex-col gap-1 overflow-y-auto px-4 py-6 scroll-thin">
         <div className="relative z-10 mb-6 flex items-center gap-3 px-1">
           <div
             className="brand-mark-3d flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-brand-mark shadow-lifted"
@@ -214,6 +219,7 @@ export default function AppHeader({ shopName, userName }) {
           </svg>
           {t('nav.logout')}
         </button>
+        </div>
       </aside>
 
       {/* ---- Topbar (sits to the right of the sidebar on large screens) ---- */}

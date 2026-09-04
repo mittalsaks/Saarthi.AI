@@ -87,7 +87,8 @@ export default function Alerts() {
   const unreadCount = alerts.filter((a) => !a.isRead).length;
 
   return (
-    <div className="min-h-screen app-shell-bg lg:pl-64">
+    <div className="min-h-screen app-shell-bg">
+      <div className="shell-content lg:pl-64">
       <AppHeader shopName={tenant?.shopName} userName={user?.name} />
 
       <main className="mx-auto max-w-3xl px-6 py-8">
@@ -130,6 +131,7 @@ export default function Alerts() {
           ))}
         </div>
       </main>
+      </div>
     </div>
   );
 }

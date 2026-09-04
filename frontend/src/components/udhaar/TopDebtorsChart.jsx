@@ -12,9 +12,11 @@ export default function TopDebtorsChart({ customers, loading }) {
   const data = useMemo(() => {
     return customers
       .filter((c) => c.balance > 0)
-      .slice(0, 6)
-      .map((c) => ({
-        name: c.name.length > 12 ? `${c.name.slice(0, 11)}…` : c.name,
+      .sort((a, b) => b.balance - a.balance)
+      .slice(0, 10)
+      .map((c, i) => ({
+        rank: i + 1,
+        name: c.name.length > 14 ? `${c.name.slice(0, 13)}…` : c.name,
         balance: c.balance,
       }));
   }, [customers]);
@@ -33,7 +35,27 @@ export default function TopDebtorsChart({ customers, loading }) {
   // Give the bars some breathing room on the right so the value label
   // never gets clipped, regardless of how large the biggest balance is.
   const maxBalance = Math.max(...data.map((d) => d.balance));
-  const barHeight = 42;
+  // Slightly tighter rows once the list gets long (e.g. 10 customers)
+  // so the chart stays readable without growing enormously tall.
+  const barHeight = data.length > 6 ? 34 : 42;
+
+  // Custom Y-axis tick: a small numbered rank badge + the name, so a
+  // list of 10 customers still reads at a glance instead of just a
+  // wall of names stacked on top of each other.
+  function RankTick({ x, y, payload }) {
+    const row = data.find((d) => d.name === payload.value);
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <circle cx={-98} cy={0} r={8} fill="#eef2ff" stroke="#c7d7fe" strokeWidth="1" />
+        <text x={-98} y={0} dy={3} textAnchor="middle" fontSize="9" fontWeight="700" fill="#4338ca">
+          {row?.rank}
+        </text>
+        <text x={-84} y={0} dy={4} textAnchor="start" fontSize="12" fontWeight="600" fill="#334155">
+          {payload.value}
+        </text>
+      </g>
+    );
+  }
 
   return (
     <div className="panel-card p-5">
@@ -44,9 +66,15 @@ export default function TopDebtorsChart({ customers, loading }) {
           <BarChart
             data={data}
             layout="vertical"
-            margin={{ top: 4, right: 56, left: 0, bottom: 4 }}
-            barCategoryGap={14}
+            margin={{ top: 4, right: 56, left: 24, bottom: 4 }}
+            barCategoryGap={data.length > 6 ? 8 : 14}
           >
+            <defs>
+              <linearGradient id="debtorGradient" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#f87171" />
+                <stop offset="100%" stopColor="#dc2626" />
+              </linearGradient>
+            </defs>
             <CartesianGrid horizontal={false} stroke="#eaf2ff" />
             <XAxis
               type="number"
@@ -59,10 +87,10 @@ export default function TopDebtorsChart({ customers, loading }) {
             <YAxis
               dataKey="name"
               type="category"
-              tick={{ fontSize: 12, fill: '#334155', fontWeight: 600 }}
+              tick={<RankTick />}
               axisLine={false}
               tickLine={false}
-              width={90}
+              width={100}
             />
             <Tooltip
               cursor={{ fill: 'rgba(37,99,235,0.06)' }}
@@ -77,7 +105,7 @@ export default function TopDebtorsChart({ customers, loading }) {
               }}
               labelStyle={{ color: '#bfdbfe', fontWeight: 700 }}
             />
-            <Bar dataKey="balance" fill="url(#debtorGradient)" radius={[0, 8, 8, 0]} maxBarSize={22}>
+            <Bar dataKey="balance" fill="url(#debtorGradient)" radius={[0, 8, 8, 0]} maxBarSize={22} animationDuration={800}>
               <LabelList
                 dataKey="balance"
                 position="right"
@@ -85,12 +113,6 @@ export default function TopDebtorsChart({ customers, loading }) {
                 style={{ fill: '#334155', fontSize: 12, fontWeight: 700 }}
               />
             </Bar>
-            <defs>
-              <linearGradient id="debtorGradient" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#f87171" />
-                <stop offset="100%" stopColor="#dc2626" />
-              </linearGradient>
-            </defs>
           </BarChart>
         </ResponsiveContainer>
       </div>

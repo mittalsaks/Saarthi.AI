@@ -63,54 +63,82 @@ export default function AddStockItemForm({ open, onToggle, onAdded }) {
       )}
 
       {open && (
-        <form onSubmit={handleSubmit} className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="text-xs font-medium text-muted sm:col-span-2">
+        <form onSubmit={handleSubmit} className="mt-4 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+          <label className="text-xs font-semibold text-muted sm:col-span-2">
             {t('stock.addForm.nameLabel')}
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => update('name', e.target.value)}
-              placeholder={t('stock.addForm.namePlaceholder')}
-              className="mt-1 w-full rounded-lg border border-surface-500 px-3 py-2 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              required
-            />
+            <div className="field-shell mt-1">
+              <span className="field-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => update('name', e.target.value)}
+                placeholder={t('stock.addForm.namePlaceholder')}
+                className="field-input"
+                required
+              />
+            </div>
           </label>
 
-          <label className="text-xs font-medium text-muted">
+          <label className="text-xs font-semibold text-muted">
             {t('stock.addForm.unitLabel')}
-            <input
-              type="text"
-              value={form.unit}
-              onChange={(e) => update('unit', e.target.value)}
-              placeholder={t('stock.addForm.unitPlaceholder')}
-              className="mt-1 w-full rounded-lg border border-surface-500 px-3 py-2 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
+            <div className="field-shell mt-1">
+              <span className="field-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 8V6a2 2 0 00-2-2H5a2 2 0 00-2 2v2M3 8h18M3 8v10a2 2 0 002 2h14a2 2 0 002-2V8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <input
+                type="text"
+                value={form.unit}
+                onChange={(e) => update('unit', e.target.value)}
+                placeholder={t('stock.addForm.unitPlaceholder')}
+                className="field-input"
+              />
+            </div>
           </label>
 
-          <label className="text-xs font-medium text-muted">
+          <label className="text-xs font-semibold text-muted">
             {t('stock.addForm.qtyLabel')}
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.currentQty}
-              onChange={(e) => update('currentQty', e.target.value)}
-              placeholder={t('stock.addForm.qtyPlaceholder')}
-              className="mt-1 w-full rounded-lg border border-surface-500 px-3 py-2 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
+            <div className="field-shell mt-1">
+              <span className="field-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 13h6M9 17h6M9 9h1M14 3v4a1 1 0 001 1h4M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.currentQty}
+                onChange={(e) => update('currentQty', e.target.value)}
+                placeholder={t('stock.addForm.qtyPlaceholder')}
+                className="field-input"
+              />
+            </div>
           </label>
 
-          <label className="text-xs font-medium text-muted sm:col-span-2">
+          <label className="text-xs font-semibold text-muted sm:col-span-2">
             {t('stock.addForm.thresholdLabel')}
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.lowStockThreshold}
-              onChange={(e) => update('lowStockThreshold', e.target.value)}
-              placeholder={t('stock.addForm.thresholdPlaceholder')}
-              className="mt-1 w-full rounded-lg border border-surface-500 px-3 py-2 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
+            <div className="field-shell mt-1">
+              <span className="field-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.lowStockThreshold}
+                onChange={(e) => update('lowStockThreshold', e.target.value)}
+                placeholder={t('stock.addForm.thresholdPlaceholder')}
+                className="field-input"
+              />
+            </div>
           </label>
 
           {error && <p className="text-xs font-medium text-danger sm:col-span-2">{error}</p>}
@@ -118,7 +146,7 @@ export default function AddStockItemForm({ open, onToggle, onAdded }) {
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-2"
+            className="rounded-lg bg-cta-gradient px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-2"
           >
             {submitting ? t('stock.addForm.saving') : t('stock.addForm.saveButton')}
           </button>

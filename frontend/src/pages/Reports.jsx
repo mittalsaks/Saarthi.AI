@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { isLoggedIn, getStoredUser, getStoredTenant, getToken } from '../lib/auth';
 import { api, API_URL } from '../lib/api';
 import { formatRupees, formatNumber } from '../lib/format';
@@ -110,7 +109,8 @@ export default function Reports() {
   if (!isLoggedIn()) return null;
 
   return (
-    <div className="min-h-screen app-shell-bg lg:pl-64">
+    <div className="min-h-screen app-shell-bg">
+      <div className="shell-content lg:pl-64">
       <AppHeader shopName={tenant?.shopName} userName={user?.name} />
 
       <main className="mx-auto max-w-5xl px-6 py-8">
@@ -202,60 +202,59 @@ export default function Reports() {
                   </p>
                 </div>
               ) : (
-                <>
-                  {/* Big, plain-language comparison bars - easier for a shopkeeper to
-                      read at a glance than a chart axis with a hidden category label. */}
-                  <div className="mt-4 space-y-3">
-                    {[
-                      { label: t('reports.chart.salesLegend'), value: report.totals.sales, color: '#2563eb', bg: 'from-primary/15 to-primary/5' },
-                      { label: t('reports.chart.expensesLegend'), value: report.totals.expenses, color: '#dc2626', bg: 'from-danger/15 to-danger/5' },
-                    ].map((row) => {
-                      const max = Math.max(report.totals.sales, report.totals.expenses, 1);
-                      const widthPct = Math.max((row.value / max) * 100, 3);
-                      return (
-                        <div key={row.label} className={`rounded-xl bg-gradient-to-r ${row.bg} p-3`}>
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="font-semibold text-slate-700">{row.label}</span>
-                            <span className="font-extrabold text-slate-900">{formatRupees(row.value)}</span>
-                          </div>
-                          <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-white/70">
-                            <div
-                              className="h-full rounded-full transition-all duration-700"
-                              style={{ width: `${widthPct}%`, background: row.color }}
-                            />
-                          </div>
+                // Single, plain-language comparison: two proportional bars with a
+                // share-of-total badge. (Previously this section also rendered a
+                // second, unlabeled recharts bar chart underneath showing the exact
+                // same two numbers again - same data twice with no extra clarity,
+                // just visual clutter. Removed in favour of one clear read.)
+                <div className="mt-4 space-y-3">
+                  {[
+                    {
+                      label: t('reports.chart.salesLegend'),
+                      value: report.totals.sales,
+                      color: '#2563eb',
+                      bg: 'from-primary/15 to-primary/5',
+                      icon: <path d="M3 17l6-6 4 4 8-8M21 7v6M21 7h-6" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />,
+                    },
+                    {
+                      label: t('reports.chart.expensesLegend'),
+                      value: report.totals.expenses,
+                      color: '#dc2626',
+                      bg: 'from-danger/15 to-danger/5',
+                      icon: <path d="M3 7l6 6 4-4 8 8M21 17v-6M21 17h-6" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />,
+                    },
+                  ].map((row) => {
+                    const total = report.totals.sales + report.totals.expenses || 1;
+                    const max = Math.max(report.totals.sales, report.totals.expenses, 1);
+                    const widthPct = Math.max((row.value / max) * 100, 3);
+                    const sharePct = Math.round((row.value / total) * 100);
+                    return (
+                      <div key={row.label} className={`rounded-xl bg-gradient-to-r ${row.bg} p-3.5`}>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="flex items-center gap-2 font-semibold text-slate-700">
+                            <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 flex-shrink-0">
+                              {row.icon}
+                            </svg>
+                            {row.label}
+                            <span
+                              className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white"
+                              style={{ background: row.color }}
+                            >
+                              {sharePct}%
+                            </span>
+                          </span>
+                          <span className="font-extrabold text-slate-900">{formatRupees(row.value)}</span>
                         </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="mt-3 h-40">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={[
-                          {
-                            name: t('reports.chart.title'),
-                            [t('reports.chart.salesLegend')]: report.totals.sales,
-                            [t('reports.chart.expensesLegend')]: report.totals.expenses,
-                          },
-                        ]}
-                        layout="vertical"
-                        margin={{ top: 0, right: 24, left: 0, bottom: 0 }}
-                        barGap={10}
-                      >
-                        <CartesianGrid horizontal={false} stroke="#eaf2ff" />
-                        <XAxis type="number" tick={{ fontSize: 11, fill: '#5c6c86' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v}`} />
-                        <YAxis type="category" dataKey="name" hide />
-                        <Tooltip
-                          formatter={(value) => formatRupees(value)}
-                          contentStyle={{ borderRadius: 12, border: '1px solid #dbe6f7', fontSize: 12 }}
-                        />
-                        <Bar dataKey={t('reports.chart.salesLegend')} fill="#2563eb" radius={[6, 6, 6, 6]} maxBarSize={26} />
-                        <Bar dataKey={t('reports.chart.expensesLegend')} fill="#dc2626" radius={[6, 6, 6, 6]} maxBarSize={26} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </>
+                        <div className="mt-2.5 h-3 w-full overflow-hidden rounded-full bg-white/80 shadow-inner">
+                          <div
+                            className="h-full rounded-full shadow-sm transition-all duration-700"
+                            style={{ width: `${widthPct}%`, background: `linear-gradient(90deg, ${row.color}cc, ${row.color})` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
 
@@ -280,6 +279,7 @@ export default function Reports() {
           </p>
         )}
       </main>
+      </div>
     </div>
   );
 }
