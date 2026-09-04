@@ -1,165 +1,599 @@
-# DukkanAi
+<div align="center">
 
-Business co-pilot for chhoti Indian dukaanon ke liye — kirana store, tailor, freelancer. Owners log sales/expenses/stock/udhaar in free text, and the app turns it into structured numbers and plain-language insights.
+# 🏪 Saarthi.ai
 
-**Golden rule:** the AI (Gemini) never calculates a number. All math (totals, %, balances, projections) is plain JS on numbers already in the database — Gemini only ever narrates numbers it's handed.
+**An AI-powered shop management platform for India's shopkeepers** — speak or type a sale like you'd tell a friend, and Saarthi.ai turns it into structured sales, stock, credit (udhaar) and profit numbers automatically — with the AI never allowed to touch the math.
 
----
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js&logoColor=white)](#-tech-stack)
+[![Express](https://img.shields.io/badge/Express-4.19-000000?logo=express&logoColor=white)](#-tech-stack)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb&logoColor=white)](#-tech-stack)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](#-tech-stack)
+[![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](#-tech-stack)
+[![Gemini](https://img.shields.io/badge/Gemini-2.0--flash-4285F4?logo=googlegemini&logoColor=white)](#-tech-stack)
 
-## 1. What you need to sign up for
+[**🚀 Live App**](https://saarthi-ai-frontend.onrender.com) · [**🔗 API**](https://saarthi-ai-umhe.onrender.com)
 
-Two free things are required before running this locally:
+</div>
 
-1. **MongoDB Atlas (free tier)** — the database.
-   - Go to https://www.mongodb.com/cloud/atlas/register, create a free account.
-   - Create a free (M0) cluster.
-   - Under **Database Access**, create a database user (username + password).
-   - Under **Network Access**, add your current IP (or `0.0.0.0/0` for quick local testing).
-   - Click **Connect → Drivers**, copy the connection string — it looks like:
-     `mongodb+srv://<user>:<password>@cluster0.xxxxx.mongodb.net/dukkanai`
+<br/>
 
-2. **Google Gemini API key (free)** — powers quick-add parsing, greetings, summaries, and alert phrasing.
-   - Go to https://aistudio.google.com/app/apikey
-   - Sign in with a Google account, click **Create API key**, copy it.
-
-The app runs fully with just those two. Two more are **optional**, only needed if you want udhaar reminders to actually deliver over SMS/email instead of just drafting the message on-screen:
-
-3. **TextBee (free)** — turns a spare Android phone into an SMS gateway, used for the "Send Reminder" SMS channel.
-   - Go to https://textbee.dev, create a free account, and follow their app setup to register a device.
-   - Copy your API key and device ID from the TextBee dashboard.
-
-4. **Gmail API OAuth credentials (free)** — sends the "Send Reminder" email channel over HTTPS (not SMTP, so it works on hosts that block SMTP ports).
-   - In Google Cloud Console, create a project, enable the Gmail API, and create an OAuth 2.0 Client ID.
-   - Grant it the `https://www.googleapis.com/auth/gmail.send` scope and generate a refresh token for the mailbox you want to send from (e.g. via Google's OAuth 2.0 Playground).
-
-If you skip 3 and 4, the app still works normally — the reminder draft still shows on-screen, and "Send Reminder" will just report that channel as not configured instead of crashing.
+<p align="center">
+  <img src="docs/screenshots/00-landing-hero.png" width="850" alt="Saarthi.ai landing page" />
+</p>
 
 ---
 
-## 2. Environment variables
+## 📖 Table of Contents
 
-Copy `backend/.env.example` to `backend/.env` and fill in:
-
-```
-MONGODB_URI=mongodb+srv://<user>:<password>@cluster0.xxxxx.mongodb.net/dukkanai
-JWT_SECRET=some_long_random_string_you_make_up
-JWT_EXPIRES_IN=7d
-PORT=5000
-GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-2.0-flash
-NODE_ENV=development
-```
-
-- `JWT_SECRET` can be any long random string (e.g. run `openssl rand -hex 32` and paste the output).
-- `GEMINI_MODEL` is optional — defaults to `gemini-2.0-flash` if omitted.
-
-**Optional — only needed for SMS/email udhaar reminders** (see item 3/4 above):
-
-```
-TEXTBEE_API_KEY=your_textbee_api_key
-TEXTBEE_DEVICE_ID=your_textbee_device_id
-GOOGLE_CLIENT_ID=your_google_oauth_client_id
-GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
-GOOGLE_REFRESH_TOKEN=your_google_oauth_refresh_token
-GMAIL_SENDER_EMAIL=the_gmail_address_you_send_from
-```
-
-The frontend needs no `.env` for local dev (it talks to `http://localhost:5000` by default via Vite's dev proxy / fetch base URL already set up in `frontend/src`). For a real deployment, see Section 5.
+- [What this is](#-what-this-is)
+- [Features](#-features)
+- [Architecture](#-architecture)
+- [The Golden Rule — AI Never Calculates](#-the-golden-rule--ai-never-calculates)
+- [Multi-Tenant Isolation](#-multi-tenant-isolation)
+- [Product Walkthrough](#-product-walkthrough)
+- [Tech Stack](#-tech-stack)
+- [Project Structure](#-project-structure)
+- [Getting Started](#-getting-started)
+- [Environment Variables](#-environment-variables)
+- [Database Schema](#-database-schema)
+- [API Reference](#-api-reference)
+- [Deployment](#-deployment)
+- [Live Demo](#-live-demo)
 
 ---
 
-## 3. Setup & run locally
+## 🧭 What this is
+
+Small shop owners across India — kirana stores, tailors, freelancers — mostly don't maintain formal books. Saarthi.ai meets them where they already are: type or speak a sale the way you'd casually tell a friend ("sold ₹500 worth of milk"), and the app turns it into a structured, categorized entry on its own.
+
+Every shop signs up as its own isolated **Tenant**, with one or more **Users** underneath it (owner + staff). From there the dashboard shows today's/week's/month's sales, expenses and net profit at a glance, low-stock and revenue-drop alerts fire automatically, and customer credit (**udhaar**) is tracked as an append-only ledger so a balance can never silently drift out of sync.
+
+---
+
+## ✨ Features
+
+<table>
+<tr><td width="33%" valign="top">
+
+### 🧾 Entries
+- **Speak-to-add**: type free text, speak it out loud, or snap a photo of a bill/khata page — AI turns it into a sale/expense entry
+- Manual entry form as a fallback, always
+- Full entry history with delete
+- AI-written daily greeting summarizing today's numbers
+
+</td><td width="33%" valign="top">
+
+### 📊 Analytics & Reports
+- Live dashboard: today / this week / this month
+- Sales vs expenses charts (Area/Bar/Line/Pie)
+- Category-wise breakdown of sales & expenses
+- "Explain this number" AI popup on any stat card
+- Date-range reports with CSV export
+
+</td><td width="33%" valign="top">
+
+### 📦 Stock & 💰 Udhaar
+- Track items with unit, quantity & low-stock threshold
+- Restock / usage / adjustment movement history
+- Add customers and log credit given vs payments received
+- Running balance always derived from the ledger, never stored
+- AI-drafted WhatsApp-style reminders, sent by SMS or email
+
+</td></tr>
+</table>
+
+**Auth & accounts** — Register with email OTP verification or sign in with Google, JWT-based sessions, password reset flow, and a public `/system-health` status page for uptime checks.
+
+---
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart LR
+    classDef client fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#e2e8f0
+    classDef api fill:#0f172a,stroke:#a78bfa,stroke-width:2px,color:#e2e8f0
+    classDef util fill:#0f172a,stroke:#fbbf24,stroke-width:2px,color:#e2e8f0
+    classDef db fill:#0f172a,stroke:#34d399,stroke-width:2px,color:#e2e8f0
+
+    FE["🖥️ React (Vite)<br/>dashboard SPA"]:::client
+
+    subgraph Backend [" ⚙️ Express REST API — Node.js "]
+        direction TB
+        API["JWT auth +<br/>tenant-scope middleware"]:::api
+        GS["🤖 geminiService<br/><sub>quick-add parsing + narration</sub>"]:::util
+        SS["📈 statsService / alertService<br/><sub>plain-JS math</sub>"]:::util
+        NS["✉️ emailService / smsService<br/><sub>OTP + udhaar reminders</sub>"]:::util
+        CR["⏰ cron jobs<br/><sub>daily alerts + udhaar automation</sub>"]:::util
+        API --> GS & SS & NS
+        CR --> SS
+    end
+
+    DB[("🗄️ MongoDB Atlas")]:::db
+
+    FE == "HTTPS / JWT" ==> API
+    API == "JSON response" ==> FE
+    API == "Mongoose ODM<br/>(tenant-scoped)" ==> DB
+    DB == "documents" ==> API
+```
+
+- **Frontend** — one React SPA (Vite), a single Axios-style API client, and page trees for Dashboard, Analytics, Stock, Udhaar, Alerts and Reports behind a login-gated layout.
+- **Backend** — layered `routes → controllers → services/models`, every protected route behind JWT auth + a tenant-scoping middleware.
+- **geminiService** — the *only* module allowed to call the Gemini API; it never sees or produces final numbers, only structured guesses or narration of numbers it's handed.
+- **statsService / alertService / udhaarService** — pure, reusable, plain-JS modules that do every calculation in the app.
+
+---
+
+## 🧠 The Golden Rule — AI Never Calculates
+
+> **The AI (Gemini) never calculates a number. All math — totals, percentages, balances, projections — is plain JavaScript on numbers already sitting in the database. Gemini only ever narrates or structures numbers it's handed.**
+
+```mermaid
+flowchart TD
+    classDef input fill:#0f172a,stroke:#38bdf8,color:#e2e8f0,stroke-width:2px
+    classDef ai fill:#0f172a,stroke:#f472b6,color:#e2e8f0,stroke-width:2px
+    classDef stage fill:#0f172a,stroke:#a78bfa,color:#e2e8f0,stroke-width:2px
+    classDef result fill:#065f46,stroke:#10b981,color:#ffffff,stroke-width:2px
+
+    A(["🗣️ Free text / voice / photo"]):::input --> B["🤖 Gemini<br/><sub>guesses type, amount, category</sub>"]:::ai
+    B --> C["✅ Server-side validation<br/><sub>validateQuickAdd.js</sub>"]:::stage
+    C --> D(["💾 Entry saved to MongoDB"]):::result
+    D --> E["📈 statsService<br/><sub>plain JS: sums, %, balances</sub>"]:::stage
+    E --> F["🤖 Gemini<br/><sub>phrases the computed numbers</sub>"]:::ai
+    F --> G(["💬 Greeting / alert / summary text"]):::result
+```
+
+This is why `/api/analytics/overview` and `/api/entries/stats` are **fast, DB-only endpoints** the dashboard renders from immediately — while `/api/analytics/summary`, the daily greeting, and udhaar reminders are separate, slower, **AI-backed endpoints** the frontend loads independently so a flaky AI call never blocks real numbers from showing.
+
+---
+
+## 🔒 Multi-Tenant Isolation
+
+Every shop is a `Tenant`, and every other collection (`User`, `Entry`, `StockItem`, `UdhaarCustomer`, `UdhaarTransaction`, `Alert`) carries a `tenantId`. All reads/writes go through a `scopeToTenant` middleware helper — no controller is allowed to query a collection with a raw `tenantId` pulled straight from `req.body` or `req.params`, so one shop's data can never leak into another's dashboard.
+
+---
+
+## 🖼️ Product Walkthrough
+
+### 1️⃣ Landing & Onboarding
+
+<p align="center">
+  <img src="docs/screenshots/01-landing-features.png" width="850" alt="Saarthi.ai feature highlights" />
+</p>
+<p align="center"><em>Speak-to-add entries, live sales analytics, smart stock alerts and credit tracking — the four pillars of the app.</em></p>
+
+<p align="center">
+  <img src="docs/screenshots/02-landing-steps.png" width="850" alt="Three-step setup" />
+</p>
+<p align="center"><em>Set up a shop in three steps — no formal bookkeeping knowledge required.</em></p>
+
+### 2️⃣ Sign Up & Login
+
+<table>
+<tr>
+<td width="50%">
+
+**Login — email/password or Google**
+<img src="docs/screenshots/03-auth-login.png" width="100%" alt="Login screen" />
+</td>
+<td width="50%">
+
+**Create account — first 50 entries free**
+<img src="docs/screenshots/04-auth-register.png" width="100%" alt="Registration screen" />
+</td>
+</tr>
+</table>
+
+### 3️⃣ Dashboard
+
+<img src="docs/screenshots/05-dashboard.png" width="850" alt="Dashboard overview" />
+<p align="center"><em>AI-written greeting up top, then today's/week's/month's sales, expenses, net profit and entry count at a glance.</em></p>
+
+### 4️⃣ Adding an Entry — AI or Manual
+
+<table>
+<tr>
+<td width="50%">
+
+**Say what happened — AI parses it**
+<img src="docs/screenshots/06-quickadd.png" width="100%" alt="Quick add entry via free text" />
+</td>
+<td width="50%">
+
+**Manual entry form — always available**
+<img src="docs/screenshots/07-manual-entry.png" width="100%" alt="Manual entry form" />
+</td>
+</tr>
+</table>
+
+### 5️⃣ Analytics
+
+<p align="center">
+  <img src="docs/screenshots/08-analytics-pie.png" width="500" alt="Sales vs expenses pie chart" />
+</p>
+<p align="center"><em>Sales vs expenses, switchable between Area, Bar, Line and Pie views.</em></p>
+
+### 6️⃣ Stock
+
+<table>
+<tr>
+<td width="50%">
+
+**Add a stock item with a low-stock threshold**
+<img src="docs/screenshots/09-stock-add.png" width="100%" alt="Add stock item" />
+</td>
+<td width="50%">
+
+**Stock levels chart + item table**
+<img src="docs/screenshots/10-stock-levels.png" width="100%" alt="Stock levels chart" />
+</td>
+</tr>
+</table>
+
+### 7️⃣ Credit (Udhaar)
+
+<table>
+<tr>
+<td width="50%">
+
+**Add a customer**
+<img src="docs/screenshots/11-udhaar-add.png" width="100%" alt="Add udhaar customer" />
+</td>
+<td width="50%">
+
+**Customer ledger + AI-drafted reminder**
+<img src="docs/screenshots/12-udhaar-detail.png" width="100%" alt="Udhaar customer detail" />
+</td>
+</tr>
+</table>
+
+### 8️⃣ Alerts & Reports
+
+<table>
+<tr>
+<td width="50%">
+
+**Low-stock / revenue-drop alerts**
+<img src="docs/screenshots/13-alerts.png" width="100%" alt="Alerts page" />
+</td>
+<td width="50%">
+
+**Date-range reports with category breakdown**
+<img src="docs/screenshots/14-reports.png" width="100%" alt="Reports page" />
+</td>
+</tr>
+</table>
+
+---
+
+## 🧰 Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 18 (Vite), React Router, Recharts, i18next |
+| Backend | Node.js, Express |
+| Database | MongoDB + Mongoose |
+| AI | Google Gemini (`gemini-2.0-flash`) — text, voice & image quick-add, narration |
+| Auth | JWT, bcryptjs, email OTP, Google Identity Services (`@react-oauth/google`) |
+| Notifications | Gmail API (OAuth2) for email, TextBee for SMS |
+| Jobs | node-cron (daily alert checks + udhaar automation) |
+| Security | Helmet, express-mongo-sanitize, express-rate-limit |
+| Testing | Jest, Supertest, mongodb-memory-server |
+| Hosting | Render (backend + frontend), MongoDB Atlas |
+
+---
+
+## 📁 Project Structure
+
+```
+Dukkain-ai-ekdmfinal/
+├── backend/
+│   ├── src/
+│   │   ├── config/          # DB connection
+│   │   ├── controllers/     # auth, entries, analytics, stock, udhaar, alerts, reports...
+│   │   ├── middleware/      # JWT auth guard, tenant scoping, rate limiters
+│   │   ├── models/          # Tenant, User, Entry, StockItem, UdhaarCustomer, UdhaarTransaction, Alert
+│   │   ├── routes/          # Express routers
+│   │   ├── services/        # geminiService, statsService, alertService, udhaarService, email/sms...
+│   │   ├── jobs/            # alertCron, udhaarCron
+│   │   ├── utils/           # jwt, cache, languages
+│   │   ├── app.js
+│   │   └── server.js
+│   ├── tests/                # Jest + Supertest integration tests
+│   ├── .env.example
+│   └── package.json
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── dashboard/     # GreetingBanner, StatCard, QuickAdd, ManualEntryForm, ProfitGauge...
+│   │   │   ├── analytics/     # SalesExpensesChart, CategoryBreakdown, ExplainNumberModal...
+│   │   │   ├── stock/         # AddStockItemForm, StockLevelsChart, StockTable...
+│   │   │   ├── udhaar/        # AddCustomerForm, CustomerDetail, AiReminderPanel...
+│   │   │   ├── alerts/
+│   │   │   └── layout/        # AppHeader
+│   │   ├── pages/              # Landing, Auth, Dashboard, Analytics, Stock, Udhaar, Alerts, Reports, SystemHealth
+│   │   ├── lib/                 # api.js, auth.js, format.js, i18next.js
+│   │   ├── locales/             # en.json
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   ├── .env.example
+│   └── package.json
+├── scripts/                  # migrate-language-pref-to-english.js
+└── README.md
+```
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18+
+- A MongoDB connection string (Atlas free tier works fine)
+- A Google Gemini API key
+- (Optional) A Google OAuth Client ID for Google Sign-In
+- (Optional) Gmail API OAuth2 credentials for OTP/reminder emails, and a TextBee account for SMS reminders
+
+### 1. Backend
 
 ```bash
-# Backend
 cd backend
 npm install
-npm run dev          # starts on http://localhost:5000
-
-# Frontend (separate terminal)
-cd frontend
-npm install
-npm run dev           # starts on http://localhost:5173
+cp .env.example .env      # fill in your own values
+npm run dev                # or: npm start
 ```
 
-Open http://localhost:5173, register a shop, and start using the dashboard.
+API runs on `http://localhost:5000` by default.
 
----
+### 2. Frontend
 
-## 4. Running tests
+```bash
+cd frontend
+npm install
+cp .env.example .env      # fill in your own values
+npm run dev
+```
+
+Frontend runs on the default Vite port and talks to the backend via `VITE_API_URL`.
+
+### 3. Tests
 
 ```bash
 cd backend
 npm test
 ```
 
-This runs the full Jest suite (`jest --runInBand`). Expected passing output looks like:
+Runs the Jest + Supertest suite against an in-memory MongoDB instance (`mongodb-memory-server`) — no real database needed.
 
+---
+
+## 🔐 Environment Variables
+
+**`backend/.env`**
+
+| Variable | Description |
+|---|---|
+| `MONGODB_URI` | MongoDB connection string |
+| `JWT_SECRET` | Secret used to sign auth tokens |
+| `JWT_EXPIRES_IN` | Token expiry (e.g. `7d`) |
+| `PORT` | Port the API listens on |
+| `GEMINI_API_KEY` | Google Gemini API key, powers quick-add + AI narration |
+| `GEMINI_MODEL` | Optional, defaults to `gemini-2.0-flash` |
+| `NODE_ENV` | Node environment |
+| `TEXTBEE_API_KEY` / `TEXTBEE_DEVICE_ID` | TextBee (Android SMS gateway) credentials for udhaar SMS reminders |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REFRESH_TOKEN` | Gmail API OAuth2 credentials for OTP & reminder emails |
+| `GMAIL_SENDER_EMAIL` | Sender address for outgoing email |
+| `CORS_ORIGINS` | Comma-separated list of allowed frontend origins |
+
+**`frontend/.env`**
+
+| Variable | Description |
+|---|---|
+| `VITE_API_URL` | `http://localhost:5000` locally; deployed backend URL in production |
+| `VITE_GOOGLE_CLIENT_ID` | Same Google Client ID as the backend — safe to expose publicly |
+
+Full, commented templates live in `backend/.env.example` and `frontend/.env.example`.
+
+---
+
+## 🗄️ Database Schema
+
+```mermaid
+erDiagram
+    TENANT ||--o{ USER : has
+    TENANT ||--o{ ENTRY : owns
+    TENANT ||--o{ STOCKITEM : owns
+    TENANT ||--o{ UDHAARCUSTOMER : owns
+    TENANT ||--o{ ALERT : owns
+    USER ||--o{ ENTRY : creates
+    UDHAARCUSTOMER ||--o{ UDHAARTRANSACTION : logs
+
+    TENANT {
+        string shopName
+        string ownerName
+        string businessType
+        boolean isActive
+    }
+    USER {
+        string name
+        string email
+        string authProvider "local / google"
+        string languagePref "English / Hindi / Hinglish"
+    }
+    ENTRY {
+        string type "sale / expense"
+        number amount
+        string category
+        string description
+        date date
+    }
+    STOCKITEM {
+        string name
+        string unit
+        number currentQty
+        number lowStockThreshold
+        array movements "restock / usage / adjustment"
+    }
+    UDHAARCUSTOMER {
+        string name
+        string phone
+        string email
+    }
+    UDHAARTRANSACTION {
+        string type "credit / payment"
+        number amount
+        string note
+    }
+    ALERT {
+        string type "revenue_drop / expense_spike / low_stock / category_zero"
+        string severity "medium / high"
+        string title
+        string message
+        boolean isRead
+    }
 ```
-PASS  tests/analyticsMath.test.js
-PASS  tests/stockMath.test.js
-PASS  tests/udhaarMath.test.js
-PASS  tests/reportMath.test.js
-PASS  tests/validateQuickAdd.test.js
-PASS  tests/auth.test.js
-PASS  tests/tenantIsolation.test.js
 
-Test Suites: 7 passed, 7 total
-Tests:       XX passed, XX total
-```
+| Collection | Purpose |
+|---|---|
+| **Tenant** | One shop/business. Every other collection carries a `tenantId` pointing back here, and every query is routed through a tenant-isolation helper. |
+| **User** | Belongs to exactly one tenant; `local` (bcrypt-hashed password + OTP) or `google` auth provider. |
+| **Entry** | A single sale or expense — the row everything else (stats, analytics, alerts) is computed from. AI never touches these numbers after creation. |
+| **StockItem** | An inventory item with a low-stock threshold and a movement sub-log (`restock`/`usage`/`adjustment`) so quantity history is always auditable. |
+| **UdhaarCustomer** | A customer the shop extends credit to. Balance owed is *never* stored — always derived from the ledger. |
+| **UdhaarTransaction** | One ledger line (`credit` or `payment`) for a udhaar customer. |
+| **Alert** | Deterministic-rule-triggered alert (low stock, revenue drop, etc.), at most one per `(tenant, type, day)`, optionally phrased by Gemini. |
 
-**What each file covers:**
+---
 
-| File | Covers | Needs Mongo? |
+## 📡 API Reference
+
+Base URL: `/api`. All routes except `register`/`login`/`google`/`forgot-password`/`reset-password`/`/system-health` require a `Bearer` JWT.
+
+<details>
+<summary><strong>Auth — <code>/api/auth</code></strong></summary>
+
+| Method | Route | Access | Description |
+|---|---|---|---|
+| POST | `/register` | Public | Register a shop + owner account directly |
+| POST | `/register/request-otp` | Public | Request an email OTP to verify a new account |
+| POST | `/register/verify-otp` | Public | Confirm the OTP and activate the account |
+| POST | `/login` | Public | Email/password login |
+| POST | `/google` | Public | Google Sign-In (login or signup) |
+| POST | `/forgot-password` | Public | Request a password reset email |
+| POST | `/reset-password` | Public | Reset password with the emailed token |
+| POST | `/logout` | Public | Clear the session |
+| GET | `/me` | Authenticated | Current user's profile |
+| PATCH | `/language` | Authenticated | Update the AI's response language (English/Hindi/Hinglish) |
+
+</details>
+
+<details>
+<summary><strong>Entries — <code>/api/entries</code></strong></summary>
+
+| Method | Route | Description |
 |---|---|---|
-| `analyticsMath.test.js` | Dashboard/analytics math: totals, % change, margins, daily series, top categories, date-range windows | No — pure JS |
-| `stockMath.test.js` | Stock status thresholds, usage-velocity averaging, restock-due projections, sidebar badge counts | No — pure JS |
-| `udhaarMath.test.js` | Udhaar (credit) balance derivation, per-customer totals, outstanding-balance summary | No — pure JS |
-| `reportMath.test.js` | Custom date-range report totals/category breakdown, CSV escaping/export | No — pure JS |
-| `validateQuickAdd.test.js` | Sanitizing/validating Gemini's quick-add output before it ever reaches the database | No — pure JS |
-| `auth.test.js` | Register/login/JWT issuing, protected-route rejection | Yes — `mongodb-memory-server` (auto-downloads an in-memory Mongo binary on first run; needs internet the first time) |
-| `tenantIsolation.test.js` | Tenant B can never read Tenant A's data via the real HTTP API, even guessing IDs | Yes — same as above |
+| GET | `/stats` | Today/week/month sales, expenses & net profit |
+| GET | `/greeting` | AI-written one-line greeting summarizing today's numbers |
+| GET | `/categories` | Distinct categories used so far, for autocomplete |
+| POST | `/quick-add` | Free-text entry → Gemini guesses the fields → validated → saved |
+| POST | `/quick-add/voice` | Base64 audio → Gemini transcribes & structures → validated → saved |
+| POST | `/quick-add/image` | Base64 bill/khata photo → Gemini reads & structures → validated → saved |
+| GET | `/` | List entries |
+| POST | `/` | Create an entry manually |
+| DELETE | `/:id` | Delete an entry |
 
-> Note: `mongodb-memory-server` downloads a small MongoDB binary the first time you run tests, so the very first `npm test` needs an internet connection. After that it's cached locally and runs offline.
+</details>
+
+<details>
+<summary><strong>Analytics — <code>/api/analytics</code></strong></summary>
+
+| Method | Route | Description |
+|---|---|---|
+| GET | `/overview` | Fast, DB-only chart data — never waits on AI |
+| GET | `/summary` | AI-backed narrative summary, loaded independently of `/overview` |
+| POST | `/explain-number` | AI explanation for a specific stat, on demand |
+
+</details>
+
+<details>
+<summary><strong>Stock — <code>/api/stock</code></strong></summary>
+
+| Method | Route | Description |
+|---|---|---|
+| GET | `/alerts/low-stock` | Items currently below their threshold |
+| GET | `/` | List stock items |
+| POST | `/` | Create a stock item |
+| GET | `/:id` | Get one item + its movement history |
+| POST | `/:id/restock` | Log a restock movement (increases quantity) |
+| POST | `/:id/usage` | Log a usage movement (decreases quantity) |
+| DELETE | `/:id` | Delete an item |
+
+</details>
+
+<details>
+<summary><strong>Udhaar — <code>/api/udhaar</code></strong></summary>
+
+| Method | Route | Description |
+|---|---|---|
+| GET | `/summary` | Total outstanding + top debtors |
+| POST | `/run-daily-jobs` | Manually trigger the udhaar automation job |
+| GET | `/customers` | List udhaar customers |
+| POST | `/customers` | Add a customer |
+| GET | `/customers/:id` | Get a customer + full transaction history |
+| POST | `/customers/:id/transactions` | Log a `credit` or `payment` |
+| GET | `/customers/:id/reminder` | AI-drafted WhatsApp-style reminder text |
+| POST | `/customers/:id/send-reminder` | Send the reminder via SMS/email |
+| DELETE | `/customers/:id` | Delete a customer |
+
+</details>
+
+<details>
+<summary><strong>Alerts — <code>/api/alerts</code></strong></summary>
+
+| Method | Route | Description |
+|---|---|---|
+| GET | `/unread-count` | Number of unread alerts |
+| PATCH | `/read-all` | Mark every alert as read |
+| POST | `/run` | Manually run the alert-check rules ("Run Check Now") |
+| GET | `/` | List alerts |
+| PATCH | `/:id/read` | Mark one alert as read |
+
+</details>
+
+<details>
+<summary><strong>Reports — <code>/api/reports</code></strong></summary>
+
+| Method | Route | Description |
+|---|---|---|
+| GET | `/` | Date-range report: totals, category breakdown, entry count |
+
+</details>
+
+<details>
+<summary><strong>System Health — <code>/api/system-health</code></strong> (Public)</summary>
+
+| Method | Route | Description |
+|---|---|---|
+| GET | `/` | Public status endpoint backing the `/system-health` page |
+
+</details>
 
 ---
 
-## 5. Free deployment (Vercel + Render + Atlas)
+## ☁️ Deployment
 
-**Database** — already done in Section 1 (Atlas free tier).
+- **Backend** → Render (root directory `backend`; build: `npm install`; start: `npm start`)
+- **Frontend** → Render Static Site (root directory `frontend`; build: `npm run build`)
+- **Database** → MongoDB Atlas (free tier)
 
-**Backend → Render (free web service)**
-1. Push this repo to GitHub.
-2. On https://render.com, click **New → Web Service**, connect the repo, set root directory to `backend`.
-3. Build command: `npm install` — Start command: `npm start`.
-4. Add the same environment variables from Section 2 under Render's **Environment** tab.
-5. Deploy — Render gives you a URL like `https://dukkanai-backend.onrender.com`.
-
-**Frontend → Vercel (free)**
-1. On https://vercel.com, click **Add New → Project**, import the same repo, set root directory to `frontend`.
-2. Framework preset: Vite. Build command: `npm run build`. Output directory: `dist`.
-3. Add an environment variable pointing the frontend at your Render backend URL (e.g. `VITE_API_URL=https://dukkanai-backend.onrender.com`) if your frontend reads it from `import.meta.env` — otherwise update the API base URL constant in `frontend/src` before building.
-4. Deploy — Vercel gives you a live URL.
-
-**Verify**
-- Visit `/system-health` on your deployed backend URL (public, no login) to confirm tenant isolation, password hashing, JWT validity, and duplicate-user prevention all report pass.
+Set `CORS_ORIGINS` on the backend to your deployed frontend URL, and `VITE_API_URL` on the frontend to your deployed backend URL.
 
 ---
 
-## 6. Project structure
+## 🌐 Live Demo
 
-```
-backend/
-  src/
-    config/      # DB connection
-    models/      # Tenant, User, Entry, StockItem, UdhaarCustomer, UdhaarTransaction, Alert
-    middleware/   # requireAuth, tenantScope (the tenant-isolation helper)
-    services/     # ALL pure math + Gemini wrapper live here
-    controllers/  # request handling, wires services together
-    routes/       # Express routers
-    jobs/         # nightly alert cron
-  tests/          # Jest + Supertest
+| | Link |
+|---|---|
+| **Frontend** | [saarthi-ai-frontend.onrender.com](https://saarthi-ai-frontend.onrender.com) |
+| **Backend API** | [saarthi-ai-umhe.onrender.com](https://saarthi-ai-umhe.onrender.com) |
 
-frontend/
-  src/            # React + Vite + Tailwind + Recharts
-```
+> ⏳ Hosted on Render's free tier — the backend spins down after inactivity, so the first request may take 30–60s to wake up. That's expected, not a bug.
+
