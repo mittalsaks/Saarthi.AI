@@ -3,6 +3,7 @@ require('dotenv').config();
 const { createApp } = require('./app');
 const { connectDB } = require('./config/db');
 const { startAlertCron } = require('./jobs/alertCron');
+const { startUdhaarCron } = require('./jobs/udhaarCron');
 
 const PORT = process.env.PORT || 5000;
 
@@ -17,6 +18,7 @@ async function start() {
     });
 
     startAlertCron();
+    startUdhaarCron();
   } catch (err) {
     console.error('Failed to start server:', err.message);
     process.exit(1);

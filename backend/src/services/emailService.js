@@ -223,6 +223,67 @@ function renderPasswordResetEmailHtml({ shopName, resetUrl }) {
   });
 }
 
+/** One row (customer name + amount) inside the digest email's pending/completed lists. */
+function renderDigestRow({ name, amount, tone }) {
+  const color = tone === 'pending' ? '#dc2626' : '#16a34a';
+  const amountText = `₹${Math.abs(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+  return `<tr>
+    <td style="padding:8px 0;border-bottom:1px solid #eef2f7;font-size:13px;color:#334155;">${escapeHtml(name)}</td>
+    <td style="padding:8px 0;border-bottom:1px solid #eef2f7;font-size:13px;font-weight:700;color:${color};text-align:right;">${amountText}</td>
+  </tr>`;
+}
+
+/**
+ * Branded HTML for the daily admin digest - yesterday's udhaar activity
+ * split into customers who still owe something ("pending") and
+ * customers whose transaction yesterday settled their balance
+ * ("completed"). Both lists are pre-computed in JS
+ * (udhaarAutomationService) - this only renders them.
+ */
+function renderDailyDigestEmailHtml({ shopName, dateLabel, pending, completed }) {
+  const pendingRows = pending.length
+    ? pending.map((c) => renderDigestRow({ name: c.name, amount: c.balance, tone: 'pending' })).join('')
+    : `<tr><td colspan="2" style="padding:8px 0;font-size:13px;color:#8a97ac;">None</td></tr>`;
+  const completedRows = completed.length
+    ? completed.map((c) => renderDigestRow({ name: c.name, amount: c.amount, tone: 'completed' })).join('')
+    : `<tr><td colspan="2" style="padding:8px 0;font-size:13px;color:#8a97ac;">None</td></tr>`;
+
+  const bodyHtml = `Here's yesterday's (${escapeHtml(dateLabel)}) udhaar activity summary.`;
+
+  const highlightHtml = `<tr>
+    <td style="padding:16px 28px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7fbff;border:1px solid #dbe6f7;border-radius:14px;">
+        <tr>
+          <td style="padding:16px 20px;">
+            <p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#5c6c86;text-transform:uppercase;letter-spacing:0.3px;">Still pending (${pending.length})</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${pendingRows}</table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:12px 28px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7fbff;border:1px solid #dbe6f7;border-radius:14px;">
+        <tr>
+          <td style="padding:16px 20px;">
+            <p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#5c6c86;text-transform:uppercase;letter-spacing:0.3px;">Cleared yesterday (${completed.length})</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${completedRows}</table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>`;
+
+  return renderEmailShell({
+    eyebrow: 'Daily udhaar digest',
+    heading: `${escapeHtml(shopName || 'Your shop')} - yesterday's summary`,
+    bodyHtml,
+    highlightHtml,
+    shopName,
+  });
+}
+
 /**
  * Builds a multipart/alternative RFC 2822 MIME message (plain text +
  * HTML), so clients that render HTML show the branded template while
@@ -303,6 +364,8 @@ async function sendEmail(to, subject, body, templateData) {
     if (templateData) {
       if (templateData.type === 'otp') html = renderOtpEmailHtml(templateData);
       else if (templateData.type === 'reset') html = renderPasswordResetEmailHtml(templateData);
+      else if (templateData.type === 'digest') html = renderDailyDigestEmailHtml(templateData);
+      else if (templateData.type === 'payment_confirmation') html = renderReminderEmailHtml({ ...templateData, message: body });
       else html = renderReminderEmailHtml({ ...templateData, message: body });
     }
 
@@ -323,4 +386,10 @@ async function sendEmail(to, subject, body, templateData) {
   }
 }
 
-module.exports = { sendEmail, renderReminderEmailHtml, renderOtpEmailHtml, renderPasswordResetEmailHtml };
+module.exports = {
+  sendEmail,
+  renderReminderEmailHtml,
+  renderOtpEmailHtml,
+  renderPasswordResetEmailHtml,
+  renderDailyDigestEmailHtml,
+};

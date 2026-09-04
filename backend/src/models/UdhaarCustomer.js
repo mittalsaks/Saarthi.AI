@@ -45,6 +45,13 @@ const udhaarCustomerSchema = new mongoose.Schema(
       maxlength: 200,
       default: '',
     },
+    // Set every time the daily reminder cron (or a manual "Send
+    // Reminder" click) actually delivers a message to this customer.
+    // Used only for the "last reminded" stamp - never gates anything.
+    lastReminderSentAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

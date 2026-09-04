@@ -129,6 +129,18 @@ async function addTransaction(req, res) {
     const allTransactions = await Transactions.find({ customerId: customer._id });
     const serialized = udhaarService.serializeCustomer(customer, allTransactions);
 
+    // Automatic payment-received confirmation - no manual "Send
+    // Reminder" click needed. Best-effort only: this never fails the
+    // request, since the transaction itself already saved successfully.
+    if (type === 'payment' && (customer.phone || customer.email)) {
+      sendPaymentConfirmation({
+        tenantId: req.tenantId,
+        customer,
+        remainingBalance: serialized.balance,
+        amountPaid: numAmount,
+      }).catch((err) => console.error('payment confirmation send failed:', err.message));
+    }
+
     return res.status(201).json({ transaction, customer: serialized });
   } catch (err) {
     if (err.name === 'ValidationError') {
@@ -137,6 +149,36 @@ async function addTransaction(req, res) {
     console.error('add udhaar transaction error:', err);
     return res.status(500).json({ error: 'Something went wrong while saving the transaction' });
   }
+}
+
+/**
+ * Fire-and-forget confirmation sent right when a payment is recorded -
+ * "thanks, payment received" plus either the remaining balance or
+ * "dues fully cleared". Runs over whichever channels the customer has
+ * on file, same pattern as sendReminder. Never throws into the
+ * request that triggered it - the caller wraps this in .catch().
+ */
+async function sendPaymentConfirmation({ tenantId, customer, remainingBalance, amountPaid }) {
+  const tenant = await Tenant.findById(tenantId);
+  const shopName = tenant?.shopName || 'the shop';
+
+  const amountText = `Rs ${amountPaid}`;
+  const message =
+    remainingBalance > 0
+      ? `Namaste ${customer.name}, we've received your payment of ${amountText} at ${shopName}. Your remaining balance is Rs ${remainingBalance}. Thank you!`
+      : `Namaste ${customer.name}, we've received your payment of ${amountText} at ${shopName}. Your udhaar is now fully cleared. Thank you!`;
+
+  const channels = {};
+  if (customer.phone) channels.sms = await smsService.sendSms(customer.phone, message);
+  if (customer.email) {
+    channels.email = await emailService.sendEmail(
+      customer.email,
+      `Payment received - ${shopName}`,
+      message,
+      { type: 'payment_confirmation', shopName, customerName: customer.name, balance: remainingBalance }
+    );
+  }
+  return channels;
 }
 
 /**
