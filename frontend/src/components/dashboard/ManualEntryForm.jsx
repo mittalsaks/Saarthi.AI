@@ -17,12 +17,34 @@ export default function ManualEntryForm({ open, onToggle, onAdded, initialDescri
   const [form, setForm] = useState(EMPTY);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [categories, setCategories] = useState({ sale: [], expense: [] });
 
   useEffect(() => {
     if (initialDescription) {
       setForm((f) => ({ ...f, description: initialDescription }));
     }
   }, [initialDescription]);
+
+  // Load this shop's already-used categories once, so the category field
+  // can suggest them (split by sale/expense). Typing something new is
+  // still fine - the datalist only suggests, it never restricts input.
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get('/api/entries/categories')
+      .then((data) => {
+        if (!cancelled) setCategories({ sale: data.sale || [], expense: data.expense || [] });
+      })
+      .catch(() => {
+        // Suggestions are a nice-to-have; a failed fetch shouldn't block
+        // the form from working as plain free text.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const categorySuggestions = categories[form.type] || [];
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -109,11 +131,17 @@ export default function ManualEntryForm({ open, onToggle, onAdded, initialDescri
             {t('dashboard.manualEntry.categoryLabel')}
             <input
               type="text"
+              list="category-suggestions"
               value={form.category}
               onChange={(e) => update('category', e.target.value)}
               placeholder={t('dashboard.manualEntry.categoryPlaceholder')}
               className="mt-1 w-full rounded-lg border border-surface-500 px-3 py-2 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
+            <datalist id="category-suggestions">
+              {categorySuggestions.map((cat) => (
+                <option key={cat} value={cat} />
+              ))}
+            </datalist>
           </label>
 
           <label className="text-xs font-medium text-muted sm:col-span-2">

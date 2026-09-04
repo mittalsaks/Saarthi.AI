@@ -275,4 +275,30 @@ async function greeting(req, res) {
   }
 }
 
-module.exports = { create, quickAdd, quickAddVoice, list, remove, stats, greeting };
+/**
+ * GET /api/entries/categories
+ * Distinct categories this shop has already used, split by sale/expense,
+ * so the manual entry form can suggest them in a dropdown instead of the
+ * owner retyping "grocery"/"rent" every time. New categories are still
+ * free text - this only ever suggests, never restricts.
+ */
+async function listCategories(req, res) {
+  try {
+    const [saleCats, expenseCats] = await Promise.all([
+      Entry.distinct('category', { tenantId: req.tenantId, type: 'sale' }),
+      Entry.distinct('category', { tenantId: req.tenantId, type: 'expense' }),
+    ]);
+
+    const clean = (arr) =>
+      Array.from(new Set(arr.filter(Boolean).map((c) => String(c).trim()))).sort((a, b) =>
+        a.localeCompare(b)
+      );
+
+    return res.status(200).json({ sale: clean(saleCats), expense: clean(expenseCats) });
+  } catch (err) {
+    console.error('list categories error:', err);
+    return res.status(500).json({ error: 'Something went wrong while loading categories' });
+  }
+}
+
+module.exports = { create, quickAdd, quickAddVoice, list, remove, stats, greeting, listCategories };
